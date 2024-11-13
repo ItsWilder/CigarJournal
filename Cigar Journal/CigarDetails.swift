@@ -45,7 +45,7 @@ struct CigarDetails: View {
                         .font(.subheadline)
                         .opacity(0.5)
                     Spacer()
-                    Text("\(cigar.shape)  /  \(cigar.length) x \(cigar.gauge)  /  \(cigar.strength)")
+                    Text("\(cigar.type)  /  \(cigar.length) x \(cigar.gauge)  /  \(cigar.strength)")
                         .font(.title3)
                         .fontWeight(.semibold)
                         .padding(.top, 8)

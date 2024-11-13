@@ -16,7 +16,7 @@ struct AddCigar: View {
     var editCigar: CigarTemplate?
     
     @State private var name = ""
-    @State private var shape = ""
+    @State private var type = ""
     @State private var length = ""
     @State private var gauge = ""
     @State private var location = ""
@@ -31,7 +31,7 @@ struct AddCigar: View {
         
         // Initialize state variables with either existing values or defaults
         _name = State(initialValue: editCigar?.name ?? "")
-        _shape = State(initialValue: editCigar?.shape ?? "Robusto")
+        _type = State(initialValue: editCigar?.type ?? "Robusto")
         _length = State(initialValue: editCigar?.length ?? "6")
         _gauge = State(initialValue: editCigar?.gauge ?? "50")
         _location = State(initialValue: editCigar?.location ?? "")
@@ -90,7 +90,7 @@ struct AddCigar: View {
                 
                 HStack (spacing: -14) {
                     
-                    CustomPickerField(selection: $shape, label: "Shape", options: ["Petite Corona", "Robusto", "Corona", "Toro", "Lonsdale", "Churchill", "Panatela", "Double Corona"])
+                    CustomPickerField(selection: $type, label: "Type", options: ["Petite Corona", "Robusto", "Corona", "Toro", "Lonsdale", "Churchill", "Panatela", "Double Corona"])
                     
                     VStack(alignment: .leading) {
                         Text("Size")
@@ -177,7 +177,7 @@ struct AddCigar: View {
                         if let cigarToEdit = editCigar {
                             // Update existing cigar
                             cigarToEdit.name = name
-                            cigarToEdit.shape = shape
+                            cigarToEdit.type = type
                             cigarToEdit.length = length
                             cigarToEdit.gauge = gauge
                             cigarToEdit.location = location.isEmpty ? "~" : location
@@ -191,7 +191,7 @@ struct AddCigar: View {
                             // Create new cigar
                             let newCigar = CigarTemplate(
                                 name: name,
-                                shape: shape,
+                                shape: type,
                                 length: length,
                                 gauge: gauge,
                                 location: location.isEmpty ? "~" : location,
@@ -367,7 +367,7 @@ private struct PickerModalOverlay: View {
     
     var body: some View {
         LengthGaugePicker(length: $length, gauge: $gauge, showPicker: $showPickerModal, animationAmount: $animationAmount)
-            .background(.regularMaterial)
+            .background(.thinMaterial)
             .frame(width: 300, height: 250)
             .cornerRadius(24)
             .shadow(radius: 20)
