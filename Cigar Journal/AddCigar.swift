@@ -90,7 +90,7 @@ struct AddCigar: View {
                 
                 HStack (spacing: -14) {
                     
-                    CustomPickerField(selection: $shape, label: "Shape", options: ["Petite", "Corona", "Robusto", "Toro", "Torpedo", "Lancero"])
+                    CustomPickerField(selection: $shape, label: "Shape", options: ["Petite Corona", "Robusto", "Corona", "Toro", "Lonsdale", "Churchill", "Panatela", "Double Corona"])
                     
                     VStack(alignment: .leading) {
                         Text("Size")
