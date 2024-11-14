@@ -1,4 +1,4 @@
-// CigarTemplate v0.11
+// CigarTemplate
 
 import Foundation
 import SwiftData

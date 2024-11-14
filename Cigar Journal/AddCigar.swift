@@ -1,4 +1,4 @@
-// AddCigar v0.18
+// AddCigar
 // Photos only - No Camera
 
 
@@ -158,9 +158,6 @@ struct AddCigar: View {
                     .datePickerStyle(.graphical)
             }
             .navigationTitle(editCigar == nil ? "Add Cigar" : "Edit Cigar")
-            //.scaleEffect(showPickerModal ? 0.95 : 1.0)
-            //.blur(radius: showPickerModal ? 3 : 0)
-            //.animation(.interpolatingSpring(mass: 1.0, stiffness: 100, damping: 12), value: showPickerModal)
             .overlay {
                 if showPickerModal {
                     PickerModalOverlay(showPickerModal: $showPickerModal, length: $length, gauge: $gauge)

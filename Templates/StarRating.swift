@@ -1,5 +1,4 @@
-// StarRating v0.8
-// Rewrite 11/9/24
+// StarRating
 
 import SwiftUI
 

@@ -1,4 +1,4 @@
-// CigarsHome v0.11
+// CigarsHome
 
 
 import SwiftUI

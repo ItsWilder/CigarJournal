@@ -1,4 +1,4 @@
-// CigarDetails v0.14
+// CigarDetails
 
 
 import SwiftUI
