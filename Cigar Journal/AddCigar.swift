@@ -47,43 +47,8 @@ struct AddCigar: View {
         NavigationStack{
             ScrollView {
                 
-                PhotosPicker(selection: $selectedItem,
-                             matching: .images,
-                             photoLibrary: .shared()) {
-                    ZStack {
-                        Rectangle()
-                            .fill(Color(.brown))
-                            .frame(height: 300)
-                        
-                        if let photo = selectedPhoto,
-                           let uiImage = UIImage(data: photo) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(height: 300)
-                                .clipped()
-                                .contentShape(Rectangle())
-                        } else {
-                            VStack {
-                                Image(systemName: "photo.on.rectangle")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(Color("AccentDarkColor"))
-                                Text("Tap to add photo")
-                                    .foregroundColor(Color("AccentDarkColor"))
-                                    .font(.caption)
-                            }
-                        }
-                    }
+                CigarPhotoPicker(selectedItem: $selectedItem, selectedPhoto: $selectedPhoto)
                     .padding(.top, 8.0)
-                    .clipShape(Rectangle())
-                }
-                             .onChange(of: selectedItem) {
-                                 Task {
-                                     if let data = try? await selectedItem?.loadTransferable(type: Data.self) {
-                                         selectedPhoto = data
-                                     }
-                                 }
-                             }
                 
                 CustomTextField(text: $name, placeholder: "Enter name", label: "Name", systemImage: "plus.circle")
                     .padding(.top, 12.0)
@@ -206,6 +171,51 @@ struct AddCigar: View {
                 }
             }
         }
+    }
+}
+
+// Photo Picker
+struct CigarPhotoPicker: View {
+    @Binding var selectedItem: PhotosPickerItem?
+    @Binding var selectedPhoto: Data?
+    
+    var body: some View {
+        PhotosPicker(selection: $selectedItem,
+                     matching: .images,
+                     photoLibrary: .shared()) {
+            ZStack {
+                Rectangle()
+                    .fill(Color(.brown))
+                    .frame(height: 300)
+                
+                if let photo = selectedPhoto,
+                   let uiImage = UIImage(data: photo) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 300)
+                        .clipped()
+                        .contentShape(Rectangle())
+                } else {
+                    VStack {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 30))
+                            .foregroundColor(Color("AccentDarkColor"))
+                        Text("Tap to add photo")
+                            .foregroundColor(Color("AccentDarkColor"))
+                            .font(.caption)
+                    }
+                }
+            }
+            .clipShape(Rectangle())
+        }
+                     .onChange(of: selectedItem) {
+                         Task {
+                             if let data = try? await selectedItem?.loadTransferable(type: Data.self) {
+                                 selectedPhoto = data
+                             }
+                         }
+                     }
     }
 }
 
