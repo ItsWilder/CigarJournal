@@ -89,7 +89,7 @@ struct AddCigar: View {
                 HStack (spacing: -14) {
                     CustomTextField(text: $location, placeholder: "Enter location", label: "Purchased", systemImage: "location.circle")
                         .padding(.top, 2.0)
-                    CustomTextField(text: $price, placeholder: "Enter price", label: "Price", systemImage: "creditcard")
+                    CustomTextField(text: $price, placeholder: "Enter price", label: "Price", systemImage: "dollarsign.circle")
                         .keyboardType(.decimalPad)
                 }
                 .padding(.top, 2.0)
