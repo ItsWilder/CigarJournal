@@ -374,7 +374,7 @@ private struct PickerModalOverlay: View {
     
     var body: some View {
         LengthGaugePicker(length: $length, gauge: $gauge, showPicker: $showPickerModal, animationAmount: $animationAmount)
-            .background(.thinMaterial)
+            .background(.ultraThinMaterial)
             .frame(width: 300, height: 250)
             .cornerRadius(24)
             .shadow(radius: 20)
