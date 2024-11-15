@@ -14,6 +14,7 @@ struct CigarsHome: View {
             Group {
                 if cigars.isEmpty {
                     WelcomeView()
+                        .padding(.top, -100)
                 } else {
                     CigarListView(cigars: cigars, deleteCigar: deleteCigar)
                         .padding(.top, 8.0)
@@ -43,17 +44,31 @@ struct CigarsHome: View {
 
 // Welcome View
 struct WelcomeView: View {
+    @State private var animate = false
     var body: some View {
         VStack {
+            Image(systemName: "list.bullet")
+                .font(.system(size: 60))
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .imageScale(.large)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.brown, Color("AccentColor"))
+                .symbolEffect(.bounce, value: animate)
+                .onTapGesture {
+                    animate.toggle()
+                }
+            
             Text("Welcome!")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .padding(.bottom, 8)
+                .padding(.top, 40)
                 .foregroundColor(.accentColor)
             Text("Tap the '+' button in the top right corner to add your first cigar.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+                .padding(.top, 1)
                 .padding(.horizontal, 40)
         }
     }
