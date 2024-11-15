@@ -48,7 +48,6 @@ struct WelcomeView: View {
             Text("Welcome!")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .multilineTextAlignment(.center)
                 .padding(.bottom, 8)
                 .foregroundColor(.accentColor)
             Text("Tap the '+' button in the top right corner to add your first cigar.")
