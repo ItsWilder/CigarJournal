@@ -83,6 +83,7 @@ struct CigarListView: View {
         List {
             ForEach(cigars) { cigar in
                 CigarRowView(cigar: cigar)
+                    .listRowBackground(Color.clear)
             }
             .onDelete(perform: deleteCigar)
         }
