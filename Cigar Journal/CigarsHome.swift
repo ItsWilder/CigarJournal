@@ -50,8 +50,6 @@ struct WelcomeView: View {
             Image(systemName: "list.bullet")
                 .font(.system(size: 60))
                 .font(.largeTitle)
-                .fontWeight(.bold)
-                .imageScale(.large)
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(.brown, Color("AccentColor"))
                 .symbolEffect(.bounce, value: animate)
@@ -69,7 +67,8 @@ struct WelcomeView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 1)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, 60)
+                .opacity(0.7)
         }
     }
 }
