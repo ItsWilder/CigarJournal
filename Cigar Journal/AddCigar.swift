@@ -55,7 +55,7 @@ struct AddCigar: View {
                 
                 HStack (spacing: -14) {
                     
-                    CustomPickerField(selection: $type, label: "Type", options: ["Petite Corona", "Robusto", "Corona", "Toro", "Lonsdale", "Churchill", "Panatela", "Double Corona"])
+                    CustomPickerField(selection: $type, label: "Type", options: ["Petite Corona", "Robusto", "Corona", "Toro", "Lonsdale", "Churchill", "Panatela", "Double Corona", "Gigantor"])
                     
                     VStack(alignment: .leading) {
                         Text("Size")
@@ -347,7 +347,7 @@ struct LengthGaugePicker: View {
                 Text("x")
                 
                 Picker("Gauge", selection: $gauge) {
-                    ForEach(Array(30...60), id: \.self) { gauge in
+                    ForEach(Array(30...64), id: \.self) { gauge in
                         Text("\(gauge)").tag("\(gauge)")
                     }
                 }
