@@ -47,7 +47,8 @@ struct WelcomeView: View {
     @State private var animate = false
     var body: some View {
         VStack {
-            Image(systemName: "list.bullet")
+            Image(systemName: animate ? "checkmark" : "list.bullet")
+                .contentTransition(.symbolEffect(.replace))
                 .font(.system(size: 60))
                 .font(.largeTitle)
                 .symbolRenderingMode(.palette)
