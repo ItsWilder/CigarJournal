@@ -347,7 +347,7 @@ struct LengthGaugePicker: View {
                 Text("x")
                 
                 Picker("Gauge", selection: $gauge) {
-                    ForEach(Array(30...64), id: \.self) { gauge in
+                    ForEach(Array(26...64), id: \.self) { gauge in
                         Text("\(gauge)").tag("\(gauge)")
                     }
                 }
