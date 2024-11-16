@@ -45,31 +45,75 @@ struct CigarsHome: View {
 // Welcome View
 struct WelcomeView: View {
     @State private var animate = false
+    
+    private let warningMessages = [
+        "Tobacco smoke can harm your children.",
+        "Smoking causes cancer.",
+        "Smoking causes heart disease and strokes.",
+        "Smoking during pregnancy can harm your baby.",
+        "Smoking can kill you.",
+        "Tobacco smoke causes fatal lung disease in nonsmokers.",
+        "Quitting smoking now greatly reduces serious risks to your health.",
+        "Smoking causes COPD, a lung disease that can be fatal.",
+        "Tobacco smoke can trigger severe asthma attacks.",
+        "Smoking causes type 2 diabetes mellitus.",
+        "Smoking reduces blood flow, which can cause erectile dysfunction."
+    ]
+    
+    private var randomWarning: String {
+        warningMessages.randomElement() ?? warningMessages[0]
+    }
+    
     var body: some View {
-        VStack {
+        VStack(spacing: 20) {
+            Spacer()
+            
+            // Icon and Welcome
             Image(systemName: animate ? "checkmark" : "list.bullet")
-                .contentTransition(.symbolEffect(.replace))
                 .font(.system(size: 60))
-                .font(.largeTitle)
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(.brown, Color("AccentColor"))
                 .symbolEffect(.bounce, value: animate)
-                .onTapGesture {
-                    animate.toggle()
-                }
+                .onTapGesture { animate.toggle() }
             
             Text("Welcome!")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .padding(.top, 40)
                 .foregroundColor(.accentColor)
+            
             Text("Tap the '+' button in the top right corner to add your first cigar.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
                 .padding(.top, 1)
                 .padding(.horizontal, 60)
-                .opacity(0.7)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            // Warning Section
+            VStack {
+                Text("WARNING:")
+                    .padding(.top, 30)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(.red)
+                
+                Text(randomWarning)
+                    .padding(.top, 1)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 60)
+                    .frame(height: 50)
+            }
+            
+            // Help Information
+            VStack {
+                Text("If you or someone you know needs help to quit smoking the American Lung Association's proven tools, tips and support can help you or your loved one end your addiction to tobacco and begin a new, smokefree phase of your life.")
+                
+                Link("Visit American Lung Association",
+                     destination: URL(string: "https://www.lung.org/quit-smoking")!)
+                    .padding(.top, 4)
+            }
+            .font(.footnote)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 60)
+            .padding(.top, 60)
         }
     }
 }
