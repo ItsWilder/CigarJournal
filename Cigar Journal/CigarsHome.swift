@@ -88,7 +88,7 @@ struct CigarListView: View {
             .onDelete(perform: deleteCigar)
         }
         .listStyle(PlainListStyle())
-        Text("Beta Build v0.13")
+        Text("Beta Build v0.14")
             .font(.caption)
             .fontWeight(.light)
             .foregroundColor(Color.gray)
