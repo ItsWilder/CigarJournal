@@ -304,7 +304,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Cigar Journal/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Cigar Journal";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "To add photos to your Cigar details, the app needs access to your camera";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "To add photos to your Cigar Details, the app needs access to your Photos Library";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -340,7 +340,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Cigar Journal/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Cigar Journal";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "To add photos to your Cigar details, the app needs access to your camera";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "To add photos to your Cigar Details, the app needs access to your Photos Library";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
