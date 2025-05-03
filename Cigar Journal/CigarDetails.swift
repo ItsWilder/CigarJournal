@@ -9,6 +9,7 @@ struct CigarDetails: View {
     let cigars: [CigarTemplate]
     @State var selectedIndex: Int
     @State var isShowingEditSheet = false
+    @State private var isShowingFullImage = false
     
     var body: some View {
         VStack {
@@ -26,6 +27,9 @@ struct CigarDetails: View {
                                         .scaledToFill()
                                         .frame(height: 300)
                                         .clipped()
+                                        .onTapGesture {
+                                            isShowingFullImage = true
+                                        }
                                 } else {
                                     Image(systemName: "photo.on.rectangle")
                                         .resizable()
@@ -80,6 +84,27 @@ struct CigarDetails: View {
         }
         .sheet(isPresented: $isShowingEditSheet) {
             AddCigar(editCigar: cigars[selectedIndex])
+        }
+        .fullScreenCover(isPresented: $isShowingFullImage) {
+            ZStack(alignment: .topTrailing) {
+                Color.black.ignoresSafeArea()
+                if let photo = cigars[selectedIndex].photo,
+                   let uiImage = UIImage(data: photo) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.black)
+                }
+                Button {
+                    isShowingFullImage = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.gray)
+                        .padding()
+                }
+            }
         }
     }
 }
