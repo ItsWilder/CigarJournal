@@ -90,10 +90,12 @@ struct CigarListView: View {
             .onDelete(perform: deleteCigar)
         }
         .listStyle(PlainListStyle())
-        Text("Build v1.1.0")
-            .font(.caption)
-            .fontWeight(.light)
-            .foregroundColor(Color.gray)
+        if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            Text("Build v\(appVersion)")
+                .font(.caption)
+                .fontWeight(.light)
+                .foregroundColor(Color.gray)
+        }
     }
 }
 
