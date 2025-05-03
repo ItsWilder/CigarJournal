@@ -11,6 +11,8 @@
 		D812F1372C90E1830040CCED /* CigarsHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1362C90E1830040CCED /* CigarsHome.swift */; };
 		D812F1392C90E1840040CCED /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D812F1382C90E1840040CCED /* Assets.xcassets */; };
 		D812F1432C90E1B60040CCED /* CigarTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1422C90E1B60040CCED /* CigarTemplate.swift */; };
+		D84AC9A32DC68F430038114E /* Backup.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84AC9A22DC68F430038114E /* Backup.swift */; };
+		D84AC9A52DC68F4F0038114E /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84AC9A42DC68F490038114E /* BackupManager.swift */; };
 		D8920EF62CA5F4C000E15294 /* AddCigar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8920EF52CA5F4C000E15294 /* AddCigar.swift */; };
 		D8920EFA2CA5F99300E15294 /* StarRating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8920EF92CA5F99300E15294 /* StarRating.swift */; };
 		D8C7CF462C978245008B65C6 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D8C7CF442C978245008B65C6 /* Preview Assets.xcassets */; };
@@ -24,6 +26,8 @@
 		D812F1382C90E1840040CCED /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D812F1422C90E1B60040CCED /* CigarTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CigarTemplate.swift; sourceTree = "<group>"; };
 		D82C60012CB5CC0500292327 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D84AC9A22DC68F430038114E /* Backup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backup.swift; sourceTree = "<group>"; };
+		D84AC9A42DC68F490038114E /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
 		D8920EF52CA5F4C000E15294 /* AddCigar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCigar.swift; sourceTree = "<group>"; };
 		D8920EF92CA5F99300E15294 /* StarRating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRating.swift; sourceTree = "<group>"; };
 		D8C7CF442C978245008B65C6 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
@@ -83,8 +87,10 @@
 		D8F30B5E2C972AA300A279FA /* Templates */ = {
 			isa = PBXGroup;
 			children = (
+				D84AC9A42DC68F490038114E /* BackupManager.swift */,
 				D812F1422C90E1B60040CCED /* CigarTemplate.swift */,
 				D8920EF92CA5F99300E15294 /* StarRating.swift */,
+				D84AC9A22DC68F430038114E /* Backup.swift */,
 			);
 			path = Templates;
 			sourceTree = "<group>";
@@ -160,11 +166,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				D8920EFA2CA5F99300E15294 /* StarRating.swift in Sources */,
+				D84AC9A32DC68F430038114E /* Backup.swift in Sources */,
 				D812F1372C90E1830040CCED /* CigarsHome.swift in Sources */,
 				D8E4095B2C9758EE003A8FC6 /* CigarDetails.swift in Sources */,
 				D812F1352C90E1830040CCED /* CigarsApp.swift in Sources */,
 				D8920EF62CA5F4C000E15294 /* AddCigar.swift in Sources */,
 				D812F1432C90E1B60040CCED /* CigarTemplate.swift in Sources */,
+				D84AC9A52DC68F4F0038114E /* BackupManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
