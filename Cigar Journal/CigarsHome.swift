@@ -9,6 +9,7 @@ struct CigarsHome: View {
     @Query(sort: \CigarTemplate.date, order: .reverse) var cigars: [CigarTemplate]
     @State private var showAddCigar = false
     @State private var showBackupActionSheet = false
+    @State private var showBackupSuccess = false
     
     var body: some View {
         NavigationStack {
@@ -52,6 +53,7 @@ struct CigarsHome: View {
                             )
                         }
                         try BackupManager.saveToJSON(backups)
+                        showBackupSuccess = true
                     } catch {
                         print("Backup failed: \(error)")
                     }
@@ -92,6 +94,9 @@ struct CigarsHome: View {
             .sheet(isPresented: $showAddCigar) {
                 AddCigar()
             }
+        }
+        .alert("Backup complete!", isPresented: $showBackupSuccess) {
+            Button("OK", role: .cancel) {}
         }
     }
     
