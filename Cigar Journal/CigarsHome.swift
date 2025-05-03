@@ -17,7 +17,6 @@ struct CigarsHome: View {
                         .padding(.top, -100)
                 } else {
                     CigarListView(cigars: cigars, deleteCigar: deleteCigar)
-                        .padding(.top, 8.0)
                 }
             }
             .navigationTitle("Cigar Journal")
@@ -128,7 +127,6 @@ struct CigarRowView: View {
                         .font(.caption)
                 }
             }
-            .padding(.vertical, 6)
         }
     }
 }
