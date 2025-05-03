@@ -22,7 +22,9 @@ struct CigarsHome: View {
             }
             .navigationTitle("Cigar Journal")
             .navigationDestination(for: CigarTemplate.self) { cigar in
-                CigarDetails(cigar: cigar)
+                if let index = cigars.firstIndex(of: cigar) {
+                    CigarDetails(cigars: cigars, selectedIndex: index)
+                }
             }
             .toolbar {
                 ToolbarItems(
