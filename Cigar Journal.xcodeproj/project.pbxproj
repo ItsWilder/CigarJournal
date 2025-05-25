@@ -3,36 +3,34 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		D812F1352C90E1830040CCED /* CigarsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1342C90E1830040CCED /* CigarsApp.swift */; };
-		D812F1372C90E1830040CCED /* CigarsHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1362C90E1830040CCED /* CigarsHome.swift */; };
 		D812F1392C90E1840040CCED /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D812F1382C90E1840040CCED /* Assets.xcassets */; };
-		D812F1432C90E1B60040CCED /* CigarTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1422C90E1B60040CCED /* CigarTemplate.swift */; };
+		D812F1432C90E1B60040CCED /* Cigar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1422C90E1B60040CCED /* Cigar.swift */; };
 		D84AC9A32DC68F430038114E /* Backup.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84AC9A22DC68F430038114E /* Backup.swift */; };
 		D84AC9A52DC68F4F0038114E /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84AC9A42DC68F490038114E /* BackupManager.swift */; };
-		D8920EF62CA5F4C000E15294 /* AddCigar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8920EF52CA5F4C000E15294 /* AddCigar.swift */; };
 		D8920EFA2CA5F99300E15294 /* StarRating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8920EF92CA5F99300E15294 /* StarRating.swift */; };
 		D8C7CF462C978245008B65C6 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D8C7CF442C978245008B65C6 /* Preview Assets.xcassets */; };
-		D8E4095B2C9758EE003A8FC6 /* CigarDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E4095A2C9758EE003A8FC6 /* CigarDetails.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		D812F1312C90E1830040CCED /* Cigar Journal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cigar Journal.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D812F1342C90E1830040CCED /* CigarsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CigarsApp.swift; sourceTree = "<group>"; };
-		D812F1362C90E1830040CCED /* CigarsHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CigarsHome.swift; sourceTree = "<group>"; };
 		D812F1382C90E1840040CCED /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		D812F1422C90E1B60040CCED /* CigarTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CigarTemplate.swift; sourceTree = "<group>"; };
+		D812F1422C90E1B60040CCED /* Cigar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cigar.swift; sourceTree = "<group>"; };
 		D82C60012CB5CC0500292327 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D84AC9A22DC68F430038114E /* Backup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backup.swift; sourceTree = "<group>"; };
 		D84AC9A42DC68F490038114E /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
-		D8920EF52CA5F4C000E15294 /* AddCigar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddCigar.swift; sourceTree = "<group>"; };
 		D8920EF92CA5F99300E15294 /* StarRating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRating.swift; sourceTree = "<group>"; };
 		D8C7CF442C978245008B65C6 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		D8E4095A2C9758EE003A8FC6 /* CigarDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CigarDetails.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		D8EE581E2DE3986600A8C3EC /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		D812F12E2C90E1830040CCED /* Frameworks */ = {
@@ -48,7 +46,6 @@
 		D812F1282C90E1830040CCED = {
 			isa = PBXGroup;
 			children = (
-				D8F30B5E2C972AA300A279FA /* Templates */,
 				D812F1332C90E1830040CCED /* Cigar Journal */,
 				D812F1322C90E1830040CCED /* Products */,
 			);
@@ -65,11 +62,10 @@
 		D812F1332C90E1830040CCED /* Cigar Journal */ = {
 			isa = PBXGroup;
 			children = (
+				D8F30B5E2C972AA300A279FA /* Models */,
+				D8EE581E2DE3986600A8C3EC /* Views */,
 				D82C60012CB5CC0500292327 /* Info.plist */,
 				D812F1342C90E1830040CCED /* CigarsApp.swift */,
-				D812F1362C90E1830040CCED /* CigarsHome.swift */,
-				D8E4095A2C9758EE003A8FC6 /* CigarDetails.swift */,
-				D8920EF52CA5F4C000E15294 /* AddCigar.swift */,
 				D812F1382C90E1840040CCED /* Assets.xcassets */,
 				D8C7CF452C978245008B65C6 /* Preview Content */,
 			);
@@ -84,15 +80,15 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
-		D8F30B5E2C972AA300A279FA /* Templates */ = {
+		D8F30B5E2C972AA300A279FA /* Models */ = {
 			isa = PBXGroup;
 			children = (
 				D84AC9A42DC68F490038114E /* BackupManager.swift */,
-				D812F1422C90E1B60040CCED /* CigarTemplate.swift */,
+				D812F1422C90E1B60040CCED /* Cigar.swift */,
 				D8920EF92CA5F99300E15294 /* StarRating.swift */,
 				D84AC9A22DC68F430038114E /* Backup.swift */,
 			);
-			path = Templates;
+			path = Models;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -109,6 +105,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				D8EE581E2DE3986600A8C3EC /* Views */,
 			);
 			name = "Cigar Journal";
 			productName = Cigars;
@@ -167,11 +166,8 @@
 			files = (
 				D8920EFA2CA5F99300E15294 /* StarRating.swift in Sources */,
 				D84AC9A32DC68F430038114E /* Backup.swift in Sources */,
-				D812F1372C90E1830040CCED /* CigarsHome.swift in Sources */,
-				D8E4095B2C9758EE003A8FC6 /* CigarDetails.swift in Sources */,
 				D812F1352C90E1830040CCED /* CigarsApp.swift in Sources */,
-				D8920EF62CA5F4C000E15294 /* AddCigar.swift in Sources */,
-				D812F1432C90E1B60040CCED /* CigarTemplate.swift in Sources */,
+				D812F1432C90E1B60040CCED /* Cigar.swift in Sources */,
 				D84AC9A52DC68F4F0038114E /* BackupManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -307,7 +303,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 100;
+				CURRENT_PROJECT_VERSION = 120;
 				DEVELOPMENT_ASSET_PATHS = "\"Cigar Journal/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -342,7 +338,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 100;
+				CURRENT_PROJECT_VERSION = 120;
 				DEVELOPMENT_ASSET_PATHS = "\"Cigar Journal/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
