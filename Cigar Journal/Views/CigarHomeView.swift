@@ -4,12 +4,17 @@
 import SwiftUI
 import SwiftData
 
+
+let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+
 struct CigarsHome: View {
     @Environment(\.modelContext) var modelContext
     @Query(sort: \CigarTemplate.date, order: .reverse) var cigars: [CigarTemplate]
     @State private var showAddCigar = false
     @State private var showBackupActionSheet = false
     @State private var showBackupSuccess = false
+
     
     var body: some View {
         NavigationStack {
@@ -161,12 +166,12 @@ struct CigarListView: View {
             .onDelete(perform: deleteCigar)
         }
         .listStyle(PlainListStyle())
-        if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
-            Text("Build v\(appVersion)")
-                .font(.caption)
-                .fontWeight(.light)
-                .foregroundColor(Color.gray)
-        }
+        
+        Text("Build \(version) (\(build))")
+            .font(.footnote)
+            .foregroundColor(.gray)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical)
     }
 }
 
