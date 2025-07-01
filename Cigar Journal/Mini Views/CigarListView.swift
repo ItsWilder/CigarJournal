@@ -22,7 +22,7 @@ struct CigarListView: View {
         }
         .listStyle(PlainListStyle())
         
-        Text("Build \(version) (\(build))")
+        Text("Version \(version) (\(build))")
             .font(.footnote)
             .foregroundColor(.gray)
             .frame(maxWidth: .infinity, alignment: .center)
