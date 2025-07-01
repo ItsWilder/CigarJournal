@@ -21,7 +21,7 @@ struct SampleData {
                       rating: 4,
                       notes: "Surprisingly polished despite its rough appearance. The smoke is warm and nutty, with subtle layers of honeyed tea, orange peel, and just a touch of caramel sweetness. Definitely more refined than expected—smooth and easygoing. Great choice for a relaxing evening.",
                       date: Calendar.current.date(byAdding: .day, value: -1, to: Date.now)!,
-                      photo: nil),
+                      photo: UIImage(named: "AVO")?.jpegData(compressionQuality: 1.0)),
         CigarTemplate(name: "Quesada 50th Anniversary",
                       type: "Robusto",
                       length: "5",
@@ -32,7 +32,7 @@ struct SampleData {
                       rating: 3,
                       notes: "Rich and complex with notes of espresso, cedar, and dark chocolate. The draw is excellent and the burn is even throughout. A celebratory cigar that lives up to its name.",
                       date: Calendar.current.date(byAdding: .day, value: -2, to: Date.now)!,
-                      photo: nil),
+                      photo: UIImage(named: "Quesada")?.jpegData(compressionQuality: 1.0)),
         CigarTemplate(name: "Casa Magna Colorado",
                       type: "Toro",
                       length: "6",
@@ -43,7 +43,7 @@ struct SampleData {
                       rating: 1,
                       notes: "Bold and spicy with a deep earthiness. Flavors of pepper, leather, and a hint of sweetness make this a satisfying smoke for seasoned aficionados.",
                       date: Calendar.current.date(byAdding: .day, value: -3, to: Date.now)!,
-                      photo: nil),
+                      photo: UIImage(named: "Magna")?.jpegData(compressionQuality: 1.0)),
         CigarTemplate(name: "A. Flores 1975 Gran Reserva",
                       type: "Churchill",
                       length: "7",
@@ -54,7 +54,7 @@ struct SampleData {
                       rating: 4,
                       notes: "Smooth and creamy with notes of cedar, nuts, and a touch of cocoa. A well-balanced cigar that is great for any time of day.",
                       date: Calendar.current.date(byAdding: .day, value: -4, to: Date.now)!,
-                      photo: nil),
+                      photo: UIImage(named: "Flores")?.jpegData(compressionQuality: 1.0)),
         CigarTemplate(name: "Herrera Esteli Brazilian Maduro",
                       type: "Robusto",
                       length: "5",
@@ -65,7 +65,7 @@ struct SampleData {
                       rating: 2,
                       notes: "Rich and flavorful with a dark chocolate sweetness balanced by spicy pepper and coffee notes. A complex smoke with a long finish.",
                       date: Calendar.current.date(byAdding: .day, value: -5, to: Date.now)!,
-                      photo: nil),
+                      photo: UIImage(named: "Herrera")?.jpegData(compressionQuality: 1.0)),
         CigarTemplate(name: "Rocky Patel A.L.R.",
                       type: "Toro",
                       length: "6",
@@ -76,7 +76,7 @@ struct SampleData {
                       rating: 5,
                       notes: "Powerful and robust with flavors of espresso, leather, and black pepper. A bold choice for those who enjoy a full-bodied cigar.",
                       date: Calendar.current.date(byAdding: .day, value: -6, to: Date.now)!,
-                      photo: nil)
+                      photo: UIImage(named: "Rocky")?.jpegData(compressionQuality: 1.0))
     ]
 }
 
