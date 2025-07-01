@@ -118,29 +118,6 @@ struct CigarsHome: View {
     }
 }
 
-// Cigar List View
-struct CigarListView: View {
-    let cigars: [CigarTemplate]
-    let deleteCigar: (IndexSet) -> Void
-    
-    var body: some View {
-        List {
-            ForEach(cigars) { cigar in
-                CigarRowView(cigar: cigar)
-                    .listRowBackground(Color.clear)
-            }
-            .onDelete(perform: deleteCigar)
-        }
-        .listStyle(PlainListStyle())
-        
-        Text("Build \(version) (\(build))")
-            .font(.footnote)
-            .foregroundColor(.gray)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical)
-    }
-}
-
 // Toolbar Items
 struct ToolbarItems: ToolbarContent {
     @Binding var showAddCigar: Bool
@@ -169,5 +146,13 @@ struct ToolbarItems: ToolbarContent {
 }
 
 #Preview {
-    CigarsHome()
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: CigarTemplate.self, configurations: config)
+
+    for cigar in SampleData.cigars {
+        container.mainContext.insert(cigar)
+    }
+
+    return CigarsHome()
+        .modelContainer(container)
 }
