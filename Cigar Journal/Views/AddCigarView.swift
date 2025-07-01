@@ -153,7 +153,7 @@ struct AddCigar: View {
                             // Create new cigar
                             let newCigar = CigarTemplate(
                                 name: name,
-                                shape: type,
+                                type: type,
                                 length: length,
                                 gauge: gauge,
                                 location: location.isEmpty ? "~" : location,
