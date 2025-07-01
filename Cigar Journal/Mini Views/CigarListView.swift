@@ -9,9 +9,6 @@ import SwiftUI
 
 struct CigarListView: View {
     
-    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
-    
     let cigars: [CigarTemplate]
     let deleteCigar: (IndexSet) -> Void
     
@@ -24,12 +21,6 @@ struct CigarListView: View {
             .onDelete(perform: deleteCigar)
         }
         .listStyle(PlainListStyle())
-        
-        Text("Version \(version) (\(build))")
-            .font(.footnote)
-            .foregroundColor(.gray)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical)
     }
 }
 

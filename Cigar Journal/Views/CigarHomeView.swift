@@ -11,6 +11,9 @@ struct CigarsHome: View {
     @State private var showAddCigar = false
     @State private var showBackupActionSheet = false
     
+    let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+    let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+    
     var body: some View {
         NavigationStack {
             Group {
@@ -36,6 +39,25 @@ struct CigarsHome: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add Cigar", systemImage: "plus") {
                         showAddCigar.toggle()
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        #if targetEnvironment(simulator)
+                        Button("Delete All Cigars", role: .destructive) {
+                            deleteAllCigars()
+                        }
+                        Button("Install Sample Cigars") {
+                            installSampleCigars()
+                        }
+                        #endif
+                        Text("Version \(version) (\(build))")
+                            .font(.footnote)
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical)
+                    } label: {
+                        Image(systemName: "ellipsis")
                     }
                 }
 //                ToolbarItem(placement: .topBarTrailing) {
@@ -109,6 +131,22 @@ struct CigarsHome: View {
 //            .alert("Backup complete!", isPresented: $showBackupSuccess) {
 //                Button("OK", role: .cancel) {}
 //            }
+        }
+    }
+    
+    private func deleteAllCigars() {
+        withAnimation {
+            for cigar in cigars {
+                modelContext.delete(cigar)
+            }
+        }
+    }
+
+    private func installSampleCigars() {
+        withAnimation {
+            for cigar in SampleData.cigars {
+                modelContext.insert(cigar)
+            }
         }
     }
     
