@@ -4,6 +4,7 @@
 import SwiftUI
 import SwiftData
 
+/// A view to show a Cigar's details
 struct CigarDetails: View {
     
     let cigars: [CigarTemplate]
@@ -21,8 +22,8 @@ struct CigarDetails: View {
                            let uiImage = UIImage(data: photo) {
                             Image(uiImage: uiImage)
                                 .resizable()
-                                .scaledToFill()
-                                .frame(height: 300)
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: .infinity, minHeight: 300, maxHeight: 300)
                                 .clipped()
                                 .onTapGesture {
                                     isShowingFullImage = true
@@ -65,6 +66,7 @@ struct CigarDetails: View {
                         }
                         .padding()
                     }
+                    .ignoresSafeArea()
                 }
                 .tag(index)
             }
@@ -104,5 +106,5 @@ struct CigarDetails: View {
 
 
 #Preview {
-    CigarDetails(cigars: SampleData.cigars, selectedIndex: 0)
+    CigarDetails(cigars: SampleData.cigars, selectedIndex: 1)
 }
