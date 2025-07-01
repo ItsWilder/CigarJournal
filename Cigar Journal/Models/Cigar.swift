@@ -31,3 +31,10 @@ class CigarTemplate {
         self.photo = photo
     }
 }
+
+extension CigarTemplate {
+    
+    static let cigarTypeOptions = ["Rothschild", "Robusto", "Petite Corona", "Corona", "Toro", "Lonsdale", "Churchill", "Lancero", "Double Corona", "Presidente", "Grande"]
+    
+    static let strengthOptions = ["Mild", "Medium", "Strong"]
+}
