@@ -211,8 +211,10 @@ struct CigarPhotoPicker: View {
         }
                      .onChange(of: selectedItem) {
                          Task {
-                             if let data = try? await selectedItem?.loadTransferable(type: Data.self) {
-                                 selectedPhoto = data
+                             if let data = try? await selectedItem?.loadTransferable(type: Data.self),
+                                let image = UIImage(data: data) {
+                                 // Compress to JPEG with quality 0.5 (adjust as needed)
+                                 selectedPhoto = image.jpegData(compressionQuality: 0.5)
                              }
                          }
                      }
