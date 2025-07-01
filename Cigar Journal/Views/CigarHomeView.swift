@@ -20,7 +20,7 @@ struct CigarsHome: View {
         NavigationStack {
             Group {
                 if cigars.isEmpty {
-                    WelcomeView()
+                    EmptyStateHomeView()
                         .padding(.top, -100)
                 } else {
                     CigarListView(cigars: cigars, deleteCigar: deleteCigar)
@@ -115,40 +115,6 @@ struct CigarsHome: View {
     
     private func handleBackupRestore() {
         showBackupActionSheet = true
-    }
-}
-
-// Welcome View
-struct WelcomeView: View {
-    @State private var animate = false
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            // Icon and Welcome
-            Image(systemName: "list.bullet")
-                .font(.system(size: 60))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.brown, Color("AccentColor"))
-                .symbolEffect(.bounce, value: animate)
-                .onTapGesture { animate.toggle() }
-            
-            Text("Welcome!")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .foregroundColor(.accentColor)
-            
-            Text("Tap the '+' button in the top right corner to add your first cigar.")
-                .padding(.top, 1)
-                .padding(.horizontal, 20)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .font(.footnote)
-
-            .padding(.horizontal, 60)
-            .padding(.top, 260)
-        }
     }
 }
 
