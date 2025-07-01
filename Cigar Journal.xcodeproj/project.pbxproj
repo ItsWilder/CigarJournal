@@ -12,6 +12,7 @@
 		D812F1432C90E1B60040CCED /* Cigar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1422C90E1B60040CCED /* Cigar.swift */; };
 		D84AC9A32DC68F430038114E /* Backup.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84AC9A22DC68F430038114E /* Backup.swift */; };
 		D84AC9A52DC68F4F0038114E /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D84AC9A42DC68F490038114E /* BackupManager.swift */; };
+		D86D2ABF2E146586004CD0E6 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D86D2ABE2E146582004CD0E6 /* SampleData.swift */; };
 		D8920EFA2CA5F99300E15294 /* StarRating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8920EF92CA5F99300E15294 /* StarRating.swift */; };
 		D8C7CF462C978245008B65C6 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D8C7CF442C978245008B65C6 /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -24,11 +25,14 @@
 		D82C60012CB5CC0500292327 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D84AC9A22DC68F430038114E /* Backup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backup.swift; sourceTree = "<group>"; };
 		D84AC9A42DC68F490038114E /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
+		D86D2ABE2E146582004CD0E6 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		D8920EF92CA5F99300E15294 /* StarRating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRating.swift; sourceTree = "<group>"; };
 		D8C7CF442C978245008B65C6 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		D86D2AB92E14643E004CD0E6 /* Elements */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Elements; sourceTree = "<group>"; };
+		D86D2ABA2E146455004CD0E6 /* Mini Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Mini Views"; sourceTree = "<group>"; };
 		D8EE581E2DE3986600A8C3EC /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -62,6 +66,8 @@
 		D812F1332C90E1830040CCED /* Cigar Journal */ = {
 			isa = PBXGroup;
 			children = (
+				D86D2ABA2E146455004CD0E6 /* Mini Views */,
+				D86D2AB92E14643E004CD0E6 /* Elements */,
 				D8F30B5E2C972AA300A279FA /* Models */,
 				D8EE581E2DE3986600A8C3EC /* Views */,
 				D82C60012CB5CC0500292327 /* Info.plist */,
@@ -83,6 +89,7 @@
 		D8F30B5E2C972AA300A279FA /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				D86D2ABE2E146582004CD0E6 /* SampleData.swift */,
 				D84AC9A42DC68F490038114E /* BackupManager.swift */,
 				D812F1422C90E1B60040CCED /* Cigar.swift */,
 				D8920EF92CA5F99300E15294 /* StarRating.swift */,
@@ -107,6 +114,8 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				D86D2AB92E14643E004CD0E6 /* Elements */,
+				D86D2ABA2E146455004CD0E6 /* Mini Views */,
 				D8EE581E2DE3986600A8C3EC /* Views */,
 			);
 			name = "Cigar Journal";
@@ -167,6 +176,7 @@
 				D8920EFA2CA5F99300E15294 /* StarRating.swift in Sources */,
 				D84AC9A32DC68F430038114E /* Backup.swift in Sources */,
 				D812F1352C90E1830040CCED /* CigarsApp.swift in Sources */,
+				D86D2ABF2E146586004CD0E6 /* SampleData.swift in Sources */,
 				D812F1432C90E1B60040CCED /* Cigar.swift in Sources */,
 				D84AC9A52DC68F4F0038114E /* BackupManager.swift in Sources */,
 			);
