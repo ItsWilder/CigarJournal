@@ -14,6 +14,8 @@ struct CigarsHome: View {
     @State private var showAddCigar = false
     @State private var showBackupActionSheet = false
     @State private var showBackupSuccess = false
+    @State private var exportURL: URL?
+    @State private var showExportSheet = false
 
     
     var body: some View {
@@ -94,10 +96,41 @@ struct CigarsHome: View {
                     }
                 }
 
+                Button("Export to CSV") {
+                    do {
+                        let backups = cigars.map {
+                            CigarBackup(
+                                name: $0.name,
+                                type: $0.type,
+                                notes: $0.notes,
+                                rating: $0.rating,
+                                date: $0.date,
+                                photoData: $0.photo,
+                                length: $0.length,
+                                gauge: $0.gauge,
+                                strength: $0.strength,
+                                location: $0.location,
+                                price: Double($0.price) ?? 0.0
+                            )
+                        }
+
+                        let url = try BackupManager.exportToCSV(backups)
+                        exportURL = url
+                        showExportSheet = true
+                    } catch {
+                        print("Export failed: \(error)")
+                    }
+                }
+
                 Button("Cancel", role: .cancel) {}
             }
             .sheet(isPresented: $showAddCigar) {
                 AddCigar()
+            }
+        }
+        .sheet(isPresented: $showExportSheet) {
+            if let exportURL {
+                ShareSheet(activityItems: [exportURL])
             }
         }
         .alert("Backup complete!", isPresented: $showBackupSuccess) {
@@ -260,6 +293,16 @@ struct ToolbarItems: ToolbarContent {
             }
         }
     }
+}
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {
