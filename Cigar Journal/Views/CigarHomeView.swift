@@ -118,12 +118,6 @@ struct CigarListView: View {
             .onDelete(perform: deleteCigar)
         }
         .listStyle(PlainListStyle())
-        
-        Text("Build \(version) (\(build))")
-            .font(.footnote)
-            .foregroundColor(.gray)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical)
     }
 }
 
@@ -216,6 +210,14 @@ struct ToolbarItems: ToolbarContent {
         .tint(Color("AccentColor"))
     }
 
+    private var overflowMenu: some View {
+        Menu {
+            Text("v\(version) (\(build))")
+        } label: {
+            Image(systemName: "ellipsis")
+        }
+    }
+
     var body: some ToolbarContent {
         if #available(iOS 26.0, *) {
             ToolbarItem(placement: .topBarLeading) {
@@ -223,8 +225,11 @@ struct ToolbarItems: ToolbarContent {
                     EditButton()
                 }
             }
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .topBarTrailing) {
                 addButton
+            }
+            ToolbarItem(placement: .primaryAction) {
+                overflowMenu
             }
         } else {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -234,6 +239,9 @@ struct ToolbarItems: ToolbarContent {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 addButton
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                overflowMenu
             }
         }
     }
