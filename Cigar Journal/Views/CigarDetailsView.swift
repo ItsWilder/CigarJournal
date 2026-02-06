@@ -10,6 +10,7 @@ struct CigarDetails: View {
     @State var selectedIndex: Int
     @State var isShowingEditSheet = false
     @State private var isShowingFullImage = false
+    private let maxVisibleDots = 5
     
     var body: some View {
         VStack {
@@ -75,7 +76,34 @@ struct CigarDetails: View {
                     .tag(index)
                 }
             }
-            .tabViewStyle(.page)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+        }
+        .safeAreaInset(edge: .bottom) {
+            if cigars.count > 1 {
+                HStack(spacing: 8) {
+                    if let firstVisibleDotIndex, firstVisibleDotIndex > 0 {
+                        Circle()
+                            .fill(Color.secondary.opacity(0.25))
+                            .frame(width: 5, height: 5)
+                    }
+
+                    ForEach(visibleDotIndices, id: \.self) { index in
+                        Circle()
+                            .fill(index == selectedIndex ? Color.primary : Color.secondary.opacity(0.35))
+                            .frame(width: index == selectedIndex ? 9 : 7, height: index == selectedIndex ? 9 : 7)
+                    }
+
+                    if let lastVisibleDotIndex, lastVisibleDotIndex < cigars.count - 1 {
+                        Circle()
+                            .fill(Color.secondary.opacity(0.25))
+                            .frame(width: 5, height: 5)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(.bottom, 8)
+            }
         }
         .toolbar {
             if #available(iOS 26.0, *) {
@@ -116,6 +144,23 @@ struct CigarDetails: View {
                 }
             }
         }
+    }
+
+    private var visibleDotIndices: [Int] {
+        guard cigars.count > maxVisibleDots else { return Array(cigars.indices) }
+
+        let halfWindow = maxVisibleDots / 2
+        let start = min(max(0, selectedIndex - halfWindow), cigars.count - maxVisibleDots)
+        let end = start + maxVisibleDots - 1
+        return Array(start...end)
+    }
+
+    private var firstVisibleDotIndex: Int? {
+        visibleDotIndices.first
+    }
+
+    private var lastVisibleDotIndex: Int? {
+        visibleDotIndices.last
     }
 }
 
