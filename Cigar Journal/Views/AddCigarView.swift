@@ -129,47 +129,63 @@ struct AddCigar: View {
                 }
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        if let cigarToEdit = editCigar {
-                            // Update existing cigar
-                            cigarToEdit.name = name
-                            cigarToEdit.type = type
-                            cigarToEdit.length = length
-                            cigarToEdit.gauge = gauge
-                            cigarToEdit.location = location.isEmpty ? "~" : location
-                            cigarToEdit.price = price.isEmpty ? "0.00" : price
-                            cigarToEdit.strength = strength
-                            cigarToEdit.rating = rating
-                            cigarToEdit.notes = notes
-                            cigarToEdit.date = date
-                            cigarToEdit.photo = selectedPhoto
-                        } else {
-                            // Create new cigar
-                            let newCigar = CigarTemplate(
-                                name: name,
-                                shape: type,
-                                length: length,
-                                gauge: gauge,
-                                location: location.isEmpty ? "~" : location,
-                                price: price.isEmpty ? "0.00" : price,
-                                strength: strength,
-                                rating: rating,
-                                notes: notes,
-                                date: date,
-                                photo: selectedPhoto
-                            )
-                            modelContext.insert(newCigar)
+                if #available(iOS 26.0, *) {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") {
+                            dismiss()
                         }
-                        dismiss()
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Save") {
+                            saveCigar()
+                            dismiss()
+                        }
+                    }
+                } else {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Save") {
+                            saveCigar()
+                            dismiss()
+                        }
                     }
                 }
             }
+        }
+    }
+
+    private func saveCigar() {
+        if let cigarToEdit = editCigar {
+            cigarToEdit.name = name
+            cigarToEdit.type = type
+            cigarToEdit.length = length
+            cigarToEdit.gauge = gauge
+            cigarToEdit.location = location.isEmpty ? "~" : location
+            cigarToEdit.price = price.isEmpty ? "0.00" : price
+            cigarToEdit.strength = strength
+            cigarToEdit.rating = rating
+            cigarToEdit.notes = notes
+            cigarToEdit.date = date
+            cigarToEdit.photo = selectedPhoto
+        } else {
+            let newCigar = CigarTemplate(
+                name: name,
+                shape: type,
+                length: length,
+                gauge: gauge,
+                location: location.isEmpty ? "~" : location,
+                price: price.isEmpty ? "0.00" : price,
+                strength: strength,
+                rating: rating,
+                notes: notes,
+                date: date,
+                photo: selectedPhoto
+            )
+            modelContext.insert(newCigar)
         }
     }
 }

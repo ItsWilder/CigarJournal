@@ -78,8 +78,18 @@ struct CigarDetails: View {
             .tabViewStyle(.page)
         }
         .toolbar {
-            Button("Edit") {
-                isShowingEditSheet = true
+            if #available(iOS 26.0, *) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Edit") {
+                        isShowingEditSheet = true
+                    }
+                }
+            } else {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Edit") {
+                        isShowingEditSheet = true
+                    }
+                }
             }
         }
         .sheet(isPresented: $isShowingEditSheet) {

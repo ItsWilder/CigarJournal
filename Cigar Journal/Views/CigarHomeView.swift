@@ -11,6 +11,7 @@ let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
 struct CigarsHome: View {
     @Environment(\.modelContext) var modelContext
     @Query(sort: \CigarTemplate.date, order: .reverse) var cigars: [CigarTemplate]
+    @AppStorage("hasSeededDemoCigars") private var hasSeededDemoCigars = false
     @State private var showAddCigar = false
     @State private var showBackupActionSheet = false
     @State private var showBackupSuccess = false
@@ -136,6 +137,9 @@ struct CigarsHome: View {
         .alert("Backup complete!", isPresented: $showBackupSuccess) {
             Button("OK", role: .cancel) {}
         }
+        .task {
+            seedDemoDataIfNeeded()
+        }
     }
     
     private func deleteCigar(at offsets: IndexSet) {
@@ -148,6 +152,21 @@ struct CigarsHome: View {
     
     private func handleBackupRestore() {
         showBackupActionSheet = true
+    }
+
+    private func seedDemoDataIfNeeded() {
+        guard !hasSeededDemoCigars, cigars.isEmpty else { return }
+
+        for cigar in CigarDemoData.templates() {
+            modelContext.insert(cigar)
+        }
+
+        do {
+            try modelContext.save()
+            hasSeededDemoCigars = true
+        } catch {
+            print("Demo data seed failed: \(error)")
+        }
     }
 }
 
@@ -274,22 +293,46 @@ struct ToolbarItems: ToolbarContent {
     let hasCigars: Bool
     let onBackupRestore: () -> Void
 
+    private var backupButton: some View {
+        Button(action: {
+            onBackupRestore()
+        }) {
+            Image(systemName: "arrow.up.forward.and.arrow.down.backward.circle")
+        }
+    }
+
+    private var addButton: some View {
+        Button("Add Cigar", systemImage: "plus") {
+            showAddCigar.toggle()
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(Color("AccentColor"))
+    }
+
     var body: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
-            if hasCigars {
-                EditButton()
+        if #available(iOS 26.0, *) {
+            ToolbarItem(placement: .topBarLeading) {
+                if hasCigars {
+                    EditButton()
+                }
             }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button(action: {
-                onBackupRestore()
-            }) {
-                Image(systemName: "arrow.up.forward.and.arrow.down.backward.circle")
+            ToolbarItem(placement: .topBarLeading) {
+                backupButton
             }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button("Add Cigar", systemImage: "plus") {
-                showAddCigar.toggle()
+            ToolbarItem(placement: .primaryAction) {
+                addButton
+            }
+        } else {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if hasCigars {
+                    EditButton()
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                backupButton
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                addButton
             }
         }
     }
@@ -306,5 +349,18 @@ struct ShareSheet: UIViewControllerRepresentable {
 }
 
 #Preview {
-    CigarsHome()
+    do {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: CigarTemplate.self, configurations: config)
+        let context = container.mainContext
+
+        for cigar in CigarDemoData.templates() {
+            context.insert(cigar)
+        }
+
+        return CigarsHome()
+            .modelContainer(container)
+    } catch {
+        return Text("Failed to load preview: \(error.localizedDescription)")
+    }
 }
