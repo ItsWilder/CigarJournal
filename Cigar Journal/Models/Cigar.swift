@@ -5,16 +5,16 @@ import SwiftData
 
 @Model
 class CigarTemplate {
-    var name: String
-    var type: String
-    var length: String
-    var gauge: String
-    var location: String
-    var price: String
-    var strength: String
-    var rating: Int
-    var notes: String
-    var date: Date
+    var name: String = ""
+    var type: String = "Robusto"
+    var length: String = "6"
+    var gauge: String = "50"
+    var location: String = "~"
+    var price: String = "0.00"
+    var strength: String = "Medium"
+    var rating: Int = 3
+    var notes: String = ""
+    var date: Date = Date()
     var photo: Data?
     
     init(name: String, shape: String, length: String, gauge: String, location: String, price: String, strength: String, rating: Int, notes: String, date: Date,  photo: Data? = nil) {
