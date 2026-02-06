@@ -159,6 +159,8 @@ struct AddCigar: View {
     }
 
     private func saveCigar() {
+        let compressedPhoto = PhotoCompression.compressedData(from: selectedPhoto)
+
         if let cigarToEdit = editCigar {
             cigarToEdit.name = name
             cigarToEdit.type = type
@@ -170,7 +172,7 @@ struct AddCigar: View {
             cigarToEdit.rating = rating
             cigarToEdit.notes = notes
             cigarToEdit.date = date
-            cigarToEdit.photo = selectedPhoto
+            cigarToEdit.photo = compressedPhoto
         } else {
             let newCigar = CigarTemplate(
                 name: name,
@@ -183,7 +185,7 @@ struct AddCigar: View {
                 rating: rating,
                 notes: notes,
                 date: date,
-                photo: selectedPhoto
+                photo: compressedPhoto
             )
             modelContext.insert(newCigar)
         }
@@ -228,7 +230,7 @@ struct CigarPhotoPicker: View {
                      .onChange(of: selectedItem) {
                          Task {
                              if let data = try? await selectedItem?.loadTransferable(type: Data.self) {
-                                 selectedPhoto = data
+                                 selectedPhoto = PhotoCompression.compressedData(from: data)
                              }
                          }
                      }

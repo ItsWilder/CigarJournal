@@ -88,7 +88,7 @@ struct CigarsHome: View {
                                 rating: backup.rating,
                                 notes: backup.notes ?? "",
                                 date: backup.date,
-                                photo: backup.photoData
+                                photo: PhotoCompression.compressedData(from: backup.photoData)
                             )
                             modelContext.insert(restored)
                         }
