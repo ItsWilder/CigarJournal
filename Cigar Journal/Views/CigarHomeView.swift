@@ -130,6 +130,14 @@ struct CigarListView: View {
 // Cigar Row View
 struct CigarRowView: View {
     let cigar: CigarTemplate
+
+    private var priceText: String {
+        cigar.price == "~" ? "~" : "$\(cigar.price)"
+    }
+
+    private var metadataLine: String {
+        "\(cigar.type)  •  \(cigar.strength)  •  \(priceText)"
+    }
     
     var body: some View {
         NavigationLink(value: cigar) {
@@ -140,21 +148,19 @@ struct CigarRowView: View {
                 VStack(alignment: .leading) {
                     Text(cigar.name)
                         .font(.headline)
-                        .padding(.bottom, 2)
-                    Text(cigar.date.formatted(date: .numeric, time: .omitted))
-                        .font(.caption)
+
+                    Text(metadataLine)
+                        .font(.callout)
                         .fontWeight(.regular)
+                        .foregroundColor(.accentColor)
+                        .opacity(0.9)
+                        .padding(.bottom, 4)
+
+                    StarRating(rating: cigar.rating)
+                        .font(.caption)
                         .foregroundColor(.accentColor)
                 }
                 Spacer()
-                VStack(alignment: .trailing) {
-                    Text(cigar.price == "~" ? "~" : "$\(cigar.price)")
-                        .font(.subheadline)
-                        .foregroundColor(.accentColor)
-                        .padding(.bottom, 4)
-                    StarRating(rating: cigar.rating)
-                        .font(.caption)
-                }
             }
         }
     }
