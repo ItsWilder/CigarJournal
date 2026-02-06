@@ -13,10 +13,6 @@ struct CigarsHome: View {
     @Query(sort: \CigarTemplate.date, order: .reverse) var cigars: [CigarTemplate]
     @AppStorage("hasSeededDemoCigars") private var hasSeededDemoCigars = false
     @State private var showAddCigar = false
-    @State private var showBackupActionSheet = false
-    @State private var showBackupSuccess = false
-    @State private var exportURL: URL?
-    @State private var showExportSheet = false
 
     
     var body: some View {
@@ -38,104 +34,12 @@ struct CigarsHome: View {
             .toolbar {
                 ToolbarItems(
                     showAddCigar: $showAddCigar,
-                    hasCigars: !cigars.isEmpty,
-                    onBackupRestore: handleBackupRestore
+                    hasCigars: !cigars.isEmpty
                 )
-            }
-            .confirmationDialog("Backup & Restore", isPresented: $showBackupActionSheet, titleVisibility: .visible) {
-                Button("Backup to File") {
-                    do {
-                        let backups = cigars.map {
-                            CigarBackup(
-                                name: $0.name,
-                                type: $0.type,
-                                notes: $0.notes,
-                                rating: $0.rating,
-                                date: $0.date,
-                                photoData: $0.photo,
-                                length: $0.length,
-                                gauge: $0.gauge,
-                                strength: $0.strength,
-                                location: $0.location,
-                                price: Double($0.price) ?? 0.0
-                            )
-                        }
-                        try BackupManager.saveToJSON(backups)
-                        showBackupSuccess = true
-                    } catch {
-                        print("Backup failed: \(error)")
-                    }
-                }
-                
-                Button("Restore from File") {
-                    do {
-                        // Remove all existing cigars
-                        for cigar in cigars {
-                            modelContext.delete(cigar)
-                        }
-
-                        // Insert restored entries
-                        let backups = try BackupManager.loadFromJSON()
-                        for backup in backups {
-                            let restored = CigarTemplate(
-                                name: backup.name,
-                                shape: backup.type ?? "",
-                                length: backup.length ?? "",
-                                gauge: backup.gauge ?? "",
-                                location: backup.location ?? "",
-                                price: String(format: "%.2f", backup.price ?? 0.0),
-                                strength: backup.strength ?? "",
-                                rating: backup.rating,
-                                notes: backup.notes ?? "",
-                                date: backup.date,
-                                photo: PhotoCompression.compressedData(from: backup.photoData)
-                            )
-                            modelContext.insert(restored)
-                        }
-                    } catch {
-                        print("Restore failed: \(error)")
-                    }
-                }
-
-                Button("Export to CSV") {
-                    do {
-                        let backups = cigars.map {
-                            CigarBackup(
-                                name: $0.name,
-                                type: $0.type,
-                                notes: $0.notes,
-                                rating: $0.rating,
-                                date: $0.date,
-                                photoData: $0.photo,
-                                length: $0.length,
-                                gauge: $0.gauge,
-                                strength: $0.strength,
-                                location: $0.location,
-                                price: Double($0.price) ?? 0.0
-                            )
-                        }
-
-                        let url = try BackupManager.exportToCSV(backups)
-                        exportURL = url
-                        showExportSheet = true
-                    } catch {
-                        print("Export failed: \(error)")
-                    }
-                }
-
-                Button("Cancel", role: .cancel) {}
             }
             .sheet(isPresented: $showAddCigar) {
                 AddCigar()
             }
-        }
-        .sheet(isPresented: $showExportSheet) {
-            if let exportURL {
-                ShareSheet(activityItems: [exportURL])
-            }
-        }
-        .alert("Backup complete!", isPresented: $showBackupSuccess) {
-            Button("OK", role: .cancel) {}
         }
         .task {
             seedDemoDataIfNeeded()
@@ -150,10 +54,6 @@ struct CigarsHome: View {
         }
     }
     
-    private func handleBackupRestore() {
-        showBackupActionSheet = true
-    }
-
     private func seedDemoDataIfNeeded() {
         guard !hasSeededDemoCigars, cigars.isEmpty else { return }
 
@@ -291,15 +191,6 @@ struct CigarImageView: View {
 struct ToolbarItems: ToolbarContent {
     @Binding var showAddCigar: Bool
     let hasCigars: Bool
-    let onBackupRestore: () -> Void
-
-    private var backupButton: some View {
-        Button(action: {
-            onBackupRestore()
-        }) {
-            Image(systemName: "arrow.up.forward.and.arrow.down.backward.circle")
-        }
-    }
 
     private var addButton: some View {
         Button("Add Cigar", systemImage: "plus") {
@@ -316,9 +207,6 @@ struct ToolbarItems: ToolbarContent {
                     EditButton()
                 }
             }
-            ToolbarItem(placement: .topBarLeading) {
-                backupButton
-            }
             ToolbarItem(placement: .primaryAction) {
                 addButton
             }
@@ -329,23 +217,10 @@ struct ToolbarItems: ToolbarContent {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                backupButton
-            }
-            ToolbarItem(placement: .topBarTrailing) {
                 addButton
             }
         }
     }
-}
-
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {
