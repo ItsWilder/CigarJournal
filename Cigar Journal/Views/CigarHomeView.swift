@@ -163,19 +163,29 @@ struct CigarRowView: View {
 // Cigar Image View
 struct CigarImageView: View {
     var photo: Data?
+
+    private let outerSize: CGFloat = 84
+    private let innerSize: CGFloat = 60
+    private let outerCornerRadius: CGFloat = 16
+
     var body: some View {
+        let inset = (outerSize - innerSize) / 2
+        let innerCornerRadius = max(0, outerCornerRadius - inset)
+        let outerShape = RoundedRectangle(cornerRadius: outerCornerRadius, style: .continuous)
+        let innerShape = RoundedRectangle(cornerRadius: innerCornerRadius, style: .continuous)
+
         ZStack {
-            RoundedRectangle(cornerRadius: 16)
+            outerShape
                 .fill(Color(.brown))
-                .frame(width: 60, height: 60)
+                .frame(width: outerSize, height: outerSize)
             
             if let imageData = photo,
                let uiImage = UIImage(data: imageData) {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 60, height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .frame(width: innerSize, height: innerSize)
+                    .clipShape(innerShape)
             } else {
                 Image(systemName: "photo.on.rectangle")
                     .resizable()
