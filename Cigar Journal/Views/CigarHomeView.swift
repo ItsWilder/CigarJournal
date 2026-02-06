@@ -8,11 +8,22 @@ import SwiftData
 let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
 let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
 
+enum CigarSortOption: String, CaseIterable, Identifiable {
+    case alphabetical = "Alphabetical"
+    case date = "Date"
+    case price = "Price"
+    case strength = "Strength"
+    case rating = "Rating"
+
+    var id: String { rawValue }
+}
+
 struct CigarsHome: View {
     @Environment(\.modelContext) var modelContext
     @Query(sort: \CigarTemplate.date, order: .reverse) var cigars: [CigarTemplate]
     @AppStorage("hasSeededDemoCigars") private var hasSeededDemoCigars = false
     @State private var showAddCigar = false
+    @State private var sortOption: CigarSortOption = .date
 
     
     var body: some View {
@@ -22,19 +33,20 @@ struct CigarsHome: View {
                     WelcomeView()
                         .padding(.top, -100)
                 } else {
-                    CigarListView(cigars: cigars, deleteCigar: deleteCigar)
+                    CigarListView(cigars: sortedCigars, deleteCigar: deleteCigar)
                 }
             }
             .navigationTitle("Cigar Journal")
             .navigationDestination(for: CigarTemplate.self) { cigar in
-                if let index = cigars.firstIndex(of: cigar) {
-                    CigarDetails(cigars: cigars, selectedIndex: index)
+                if let index = sortedCigars.firstIndex(of: cigar) {
+                    CigarDetails(cigars: sortedCigars, selectedIndex: index)
                 }
             }
             .toolbar {
                 ToolbarItems(
                     showAddCigar: $showAddCigar,
-                    hasCigars: !cigars.isEmpty
+                    hasCigars: !cigars.isEmpty,
+                    sortOption: $sortOption
                 )
             }
             .sheet(isPresented: $showAddCigar) {
@@ -49,8 +61,36 @@ struct CigarsHome: View {
     private func deleteCigar(at offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                modelContext.delete(cigars[index])
+                modelContext.delete(sortedCigars[index])
             }
+        }
+    }
+
+    private var sortedCigars: [CigarTemplate] {
+        switch sortOption {
+        case .alphabetical:
+            return cigars.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .date:
+            return cigars.sorted { $0.date > $1.date }
+        case .price:
+            return cigars.sorted { (Double($0.price) ?? 0) > (Double($1.price) ?? 0) }
+        case .strength:
+            return cigars.sorted { strengthRank($0.strength) > strengthRank($1.strength) }
+        case .rating:
+            return cigars.sorted { $0.rating > $1.rating }
+        }
+    }
+
+    private func strengthRank(_ strength: String) -> Int {
+        switch strength.lowercased() {
+        case "strong":
+            return 3
+        case "medium":
+            return 2
+        case "mild":
+            return 1
+        default:
+            return 0
         }
     }
     
@@ -201,6 +241,7 @@ struct CigarImageView: View {
 struct ToolbarItems: ToolbarContent {
     @Binding var showAddCigar: Bool
     let hasCigars: Bool
+    @Binding var sortOption: CigarSortOption
 
     private var addButton: some View {
         Button("Add Cigar", systemImage: "plus") {
@@ -212,9 +253,24 @@ struct ToolbarItems: ToolbarContent {
 
     private var overflowMenu: some View {
         Menu {
+            Menu {
+                Picker("Sort Option", selection: $sortOption) {
+                    ForEach(CigarSortOption.allCases) { option in
+                        Text(option.rawValue).tag(option)
+                    }
+                }
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("Sort By", systemImage: "arrow.up.arrow.down")
+                    Text(sortOption.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Divider()
             Text("v\(version) (\(build))")
         } label: {
-            Image(systemName: "ellipsis")
+            Label("Options", systemImage: "ellipsis")
         }
     }
 
