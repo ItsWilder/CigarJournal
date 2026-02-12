@@ -27,11 +27,17 @@ struct AddCigar: View {
     @State private var date = Date()
     @State private var showingLengthPicker = false
     @State private var showingGaugePicker = false
-    
+    @State private var isRecognizing = false
+    @State private var recognitionResult: CigarRecognitionResult?
+    @State private var recognitionStatus = ""
+    @State private var showingRecognitionError = false
+    @State private var recognitionErrorMessage = ""
+
     private let typeOptions = ["Rothschild", "Robusto", "Petite Corona", "Corona", "Toro", "Lonsdale", "Churchill", "Lancero", "Double Corona", "Presidente", "Grande"]
     private let strengthOptions = ["Mild", "Medium", "Strong"]
     private let lengthOptions = stride(from: 3.0, through: 9.0, by: 0.25).map { String(format: "%.2f", $0) }
     private let gaugeOptions = Array(26...64).map(String.init)
+    private let recognitionService = CigarRecognitionService()
     
     init(editCigar: CigarTemplate? = nil) {
         self.editCigar = editCigar
@@ -57,6 +63,48 @@ struct AddCigar: View {
                     CigarPhotoPicker(selectedItem: $selectedItem, selectedPhoto: $selectedPhoto)
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
+                }
+                
+                Section("Recognition") {
+                    Button {
+                        identifyCigar()
+                    } label: {
+                        Label("Identify Cigar", systemImage: "sparkles.rectangle.stack")
+                    }
+                    .disabled(selectedPhoto == nil || isRecognizing)
+                    .accessibilityHint("Uses on-device intelligence to suggest cigar details.")
+
+                    if isRecognizing {
+                        HStack {
+                            ProgressView()
+                            Text("Analyzing photo...")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if !recognitionStatus.isEmpty {
+                        Text(recognitionStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let result = recognitionResult, result.suggestionCount > 0 {
+                        if let suggestion = result.name {
+                            suggestionRow(label: "Name", suggestion: suggestion)
+                        }
+                        if let suggestion = result.type {
+                            suggestionRow(label: "Type", suggestion: suggestion)
+                        }
+                        if let suggestion = result.length {
+                            suggestionRow(label: "Length", suggestion: suggestion)
+                        }
+                        if let suggestion = result.gauge {
+                            suggestionRow(label: "Gauge", suggestion: suggestion)
+                        }
+                        if let suggestion = result.strength {
+                            suggestionRow(label: "Strength", suggestion: suggestion)
+                        }
+                    }
                 }
 
                 Section("Details") {
@@ -172,6 +220,11 @@ struct AddCigar: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle(editCigar == nil ? "Add Cigar" : "Edit Cigar")
+            .alert("Identification Failed", isPresented: $showingRecognitionError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(recognitionErrorMessage)
+            }
             .toolbar {
                 if #available(iOS 26.0, *) {
                     ToolbarItem(placement: .topBarLeading) {
@@ -214,6 +267,72 @@ struct AddCigar: View {
         }
         return "6.00"
     }
+    
+    private func identifyCigar() {
+        isRecognizing = true
+        recognitionStatus = ""
+        
+        Task {
+            do {
+                let result = try await recognitionService.recognize(
+                    photoData: selectedPhoto,
+                    typeOptions: typeOptions,
+                    strengthOptions: strengthOptions
+                )
+                
+                await MainActor.run {
+                    recognitionResult = result
+                    let applied = applySuggestions(from: result)
+                    recognitionStatus = applied > 0
+                        ? "Applied \(applied) suggestion\(applied == 1 ? "" : "s") using \(result.sourceLabel). Review before saving."
+                        : "No confident suggestions found."
+                    isRecognizing = false
+                }
+            } catch {
+                await MainActor.run {
+                    recognitionErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                    showingRecognitionError = true
+                    isRecognizing = false
+                }
+            }
+        }
+    }
+    
+    @discardableResult
+    private func applySuggestions(from result: CigarRecognitionResult) -> Int {
+        var applied = 0
+        
+        if let suggestion = result.name {
+            name = suggestion.value
+            applied += 1
+        }
+        if let suggestion = result.type,
+           let matchedType = typeOptions.first(where: { $0.caseInsensitiveCompare(suggestion.value) == .orderedSame }) {
+            type = matchedType
+            applied += 1
+        }
+        if let suggestion = result.length {
+            let normalized = Self.normalizedLength(suggestion.value)
+            if lengthOptions.contains(normalized) {
+                length = normalized
+                applied += 1
+            }
+        }
+        if let suggestion = result.gauge {
+            let numeric = suggestion.value.filter(\.isNumber)
+            if gaugeOptions.contains(numeric) {
+                gauge = numeric
+                applied += 1
+            }
+        }
+        if let suggestion = result.strength,
+           let matchedStrength = strengthOptions.first(where: { $0.caseInsensitiveCompare(suggestion.value) == .orderedSame }) {
+            strength = matchedStrength
+            applied += 1
+        }
+        
+        return applied
+    }
 
     private func saveCigar() {
         let compressedPhoto = PhotoCompression.compressedData(from: selectedPhoto)
@@ -245,6 +364,35 @@ struct AddCigar: View {
                 photo: compressedPhoto
             )
             modelContext.insert(newCigar)
+        }
+    }
+}
+
+private extension AddCigar {
+    @ViewBuilder
+    func suggestionRow(label: String, suggestion: CigarFieldSuggestion) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(suggestion.value)
+                Text(confidenceLabel(for: suggestion.confidence))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(suggestion.value), \(confidenceLabel(for: suggestion.confidence)) confidence")
+    }
+    
+    func confidenceLabel(for confidence: Double) -> String {
+        switch confidence {
+        case 0.85...:
+            return "High"
+        case 0.65..<0.85:
+            return "Medium"
+        default:
+            return "Low"
         }
     }
 }
