@@ -1,9 +1,10 @@
 // AddCigar
-// Photos only - No Camera
+// Supports Camera and Photo Library
 
 
 import SwiftUI
 import PhotosUI
+import UIKit
 
 struct AddCigar: View {
     @Environment(\.modelContext) var modelContext
@@ -252,11 +253,15 @@ struct AddCigar: View {
 struct CigarPhotoPicker: View {
     @Binding var selectedItem: PhotosPickerItem?
     @Binding var selectedPhoto: Data?
+    @State private var showingSourceDialog = false
+    @State private var showingPhotoLibrary = false
+    @State private var showingCamera = false
+    @State private var showingCameraUnavailableAlert = false
     
     var body: some View {
-        PhotosPicker(selection: $selectedItem,
-                     matching: .images,
-                     photoLibrary: .shared()) {
+        Button {
+            showingSourceDialog = true
+        } label: {
             ZStack {
                 Rectangle()
                     .fill(Color(.brown))
@@ -283,13 +288,89 @@ struct CigarPhotoPicker: View {
             }
             .clipShape(Rectangle())
         }
-                     .onChange(of: selectedItem) {
-                         Task {
-                             if let data = try? await selectedItem?.loadTransferable(type: Data.self) {
-                                 selectedPhoto = PhotoCompression.compressedData(from: data)
-                             }
-                         }
-                     }
+        .buttonStyle(.plain)
+        .confirmationDialog("Add Photo", isPresented: $showingSourceDialog, titleVisibility: .visible) {
+            Button("Camera") {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    showingCamera = true
+                } else {
+                    showingCameraUnavailableAlert = true
+                }
+            }
+            Button("Photo Library") {
+                showingPhotoLibrary = true
+            }
+            if selectedPhoto != nil {
+                Button("Remove Photo", role: .destructive) {
+                    selectedPhoto = nil
+                    selectedItem = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .photosPicker(
+            isPresented: $showingPhotoLibrary,
+            selection: $selectedItem,
+            matching: .images,
+            photoLibrary: .shared()
+        )
+        .sheet(isPresented: $showingCamera) {
+            CameraImagePicker(selectedPhoto: $selectedPhoto)
+                .ignoresSafeArea()
+        }
+        .alert("Camera Unavailable", isPresented: $showingCameraUnavailableAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This device does not support camera capture.")
+        }
+        .onChange(of: selectedItem) {
+            Task {
+                if let data = try? await selectedItem?.loadTransferable(type: Data.self) {
+                    selectedPhoto = PhotoCompression.compressedData(from: data)
+                }
+            }
+        }
+    }
+}
+
+private struct CameraImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedPhoto: Data?
+    @Environment(\.dismiss) private var dismiss
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(selectedPhoto: $selectedPhoto, dismiss: dismiss)
+    }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        picker.allowsEditing = false
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        @Binding var selectedPhoto: Data?
+        let dismiss: DismissAction
+
+        init(selectedPhoto: Binding<Data?>, dismiss: DismissAction) {
+            _selectedPhoto = selectedPhoto
+            self.dismiss = dismiss
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage,
+               let imageData = image.jpegData(compressionQuality: 0.9) {
+                selectedPhoto = PhotoCompression.compressedData(from: imageData)
+            }
+            dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            dismiss()
+        }
     }
 }
 
