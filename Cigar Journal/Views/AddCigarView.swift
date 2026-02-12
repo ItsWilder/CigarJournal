@@ -11,7 +11,6 @@ struct AddCigar: View {
     
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedPhoto: Data?
-    @State private var showPickerModal = false
     
     var editCigar: CigarTemplate?
     
@@ -25,6 +24,13 @@ struct AddCigar: View {
     @State private var rating = 3
     @State private var notes = ""
     @State private var date = Date()
+    @State private var showingLengthPicker = false
+    @State private var showingGaugePicker = false
+    
+    private let typeOptions = ["Rothschild", "Robusto", "Petite Corona", "Corona", "Toro", "Lonsdale", "Churchill", "Lancero", "Double Corona", "Presidente", "Grande"]
+    private let strengthOptions = ["Mild", "Medium", "Strong"]
+    private let lengthOptions = stride(from: 3.0, through: 9.0, by: 0.25).map { String(format: "%.2f", $0) }
+    private let gaugeOptions = Array(26...64).map(String.init)
     
     init(editCigar: CigarTemplate? = nil) {
         self.editCigar = editCigar
@@ -32,7 +38,7 @@ struct AddCigar: View {
         // Initialize state variables with either existing values or defaults
         _name = State(initialValue: editCigar?.name ?? "")
         _type = State(initialValue: editCigar?.type ?? "Robusto")
-        _length = State(initialValue: editCigar?.length ?? "6")
+        _length = State(initialValue: Self.normalizedLength(editCigar?.length ?? "6"))
         _gauge = State(initialValue: editCigar?.gauge ?? "50")
         _location = State(initialValue: editCigar?.location ?? "")
         _price = State(initialValue: editCigar?.price ?? "")
@@ -44,90 +50,127 @@ struct AddCigar: View {
     }
     
     var body: some View {
-        NavigationStack{
-            ScrollView {
-                
-                CigarPhotoPicker(selectedItem: $selectedItem, selectedPhoto: $selectedPhoto)
-                    .padding(.top, 8.0)
-                
-                CustomTextField(text: $name, placeholder: "Enter name", label: "Name", systemImage: "plus.circle")
-                    .padding(.top, 12.0)
-                
-                HStack (spacing: -14) {
-                    
-                    CustomPickerField(selection: $type, label: "Type", options: ["Rothschild", "Robusto", "Petite Corona", "Corona", "Toro", "Lonsdale", "Churchill", "Lancero", "Double Corona", "Presidente", "Grande"])
-                    
-                    VStack(alignment: .leading) {
-                        Text("Size")
-                            .font(.footnote)
-                            .fontWeight(.bold)
-                            .foregroundColor(.gray)
-                        
-                        Button(action: {
-                            showPickerModal.toggle()
-                        }) {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.primary)
-                                .opacity(0.05)
-                                .frame(height: 60)
-                                .overlay(
-                                    HStack {
-                                        Text("\(length) x \(gauge)")
-                                            .padding(.leading)
-                                        Spacer()
-                                    }
-                                )
+        NavigationStack {
+            List {
+                Section {
+                    CigarPhotoPicker(selectedItem: $selectedItem, selectedPhoto: $selectedPhoto)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                }
+
+                Section("Details") {
+                    IconTextFieldRow(
+                        systemImage: "plus.circle",
+                        title: "Name",
+                        text: $name,
+                        placeholder: "Name"
+                    )
+
+                    IconTextFieldRow(
+                        systemImage: "storefront",
+                        title: "Store",
+                        text: $location,
+                        placeholder: "Store"
+                    )
+
+                    IconTextFieldRow(
+                        systemImage: "dollarsign.circle",
+                        title: "Price",
+                        text: $price,
+                        placeholder: "Price",
+                        keyboardType: .decimalPad
+                    )
+
+                    IconDateRow(systemImage: "calendar", title: "Date", date: $date)
+
+                    IconRatingRow(systemImage: "star", title: "Rating", rating: $rating)
+                }
+
+                Section("Size") {
+                    DisclosureGroup(
+                        isExpanded: $showingLengthPicker,
+                        content: {
+                            Picker("Length", selection: $length) {
+                                ForEach(lengthOptions, id: \.self) { option in
+                                    Text("\(option)\"")
+                                        .tag(option)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .labelsHidden()
+                            .frame(maxHeight: 150)
+                        },
+                        label: {
+                            HStack {
+                                Label("Length", systemImage: "arrow.left.and.right")
+                                Spacer()
+                                Text("\(length)\"")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    )
+                    .onChange(of: showingLengthPicker) {
+                        if showingLengthPicker {
+                            showingGaugePicker = false
                         }
                     }
-                    .padding(.horizontal)
-                    
-                    CustomPickerField(selection: $strength, label: "Strength", options: ["Mild", "Medium", "Strong"])
-                }
-                .padding(.top, 2.0)
-                
-                
-                HStack (spacing: -14) {
-                    CustomTextField(text: $location, placeholder: "Enter Store Name", label: "Store", systemImage: "location.circle")
-                        .padding(.top, 2.0)
-                    CustomTextField(text: $price, placeholder: "Enter price", label: "Price", systemImage: "dollarsign.circle")
-                        .keyboardType(.decimalPad)
-                }
-                .padding(.top, 2.0)
-                
-                
-                
-                CustomTextField(text: $notes, placeholder: "Enter notes", label: "Notes", systemImage: "note.text")
-                    .padding(.top, 2.0)
-                
-                VStack(alignment: .leading) {
-                    Text("Rating")
-                        .font(.footnote)
-                        .fontWeight(.bold)
-                        .foregroundColor(Color.gray)
-                        .padding(18.0) //had to put this in to align the text
-                        .frame(height: 12.0) //had to put this in to align the text
-                    
-                    Picker("Rating", selection: $rating) {
-                        ForEach (1...5, id: \.self) { number in
-                            Text("\(number)")
-                                .tag(number)
+
+                    DisclosureGroup(
+                        isExpanded: $showingGaugePicker,
+                        content: {
+                            Picker("Gauge", selection: $gauge) {
+                                ForEach(gaugeOptions, id: \.self) { option in
+                                    Text(option)
+                                        .tag(option)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .labelsHidden()
+                            .frame(maxHeight: 150)
+                        },
+                        label: {
+                            HStack {
+                                Label("Gauge", systemImage: "circle.dotted")
+                                Spacer()
+                                Text(gauge)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    )
+                    .onChange(of: showingGaugePicker) {
+                        if showingGaugePicker {
+                            showingLengthPicker = false
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.top, 6)
-                    .padding(.horizontal)
-                    .cornerRadius(8)
                 }
-                
-                DatePicker("", selection: $date, displayedComponents: .date)
-                    .datePickerStyle(.graphical)
+
+                Section("Features") {
+                    IconMenuRow(
+                        systemImage: "chart.bar.xaxis",
+                        title: "Strength",
+                        value: strength,
+                        options: strengthOptions
+                    ) { option in
+                        strength = option
+                    }
+
+                    IconMenuRow(
+                        systemImage: "shippingbox",
+                        title: "Type",
+                        value: type,
+                        options: typeOptions
+                    ) { option in
+                        type = option
+                    }
+                }
+
+                Section("Notes") {
+                    TextEditor(text: $notes)
+                        .frame(minHeight: 150)
+                }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle(editCigar == nil ? "Add Cigar" : "Edit Cigar")
-            .overlay {
-                if showPickerModal {
-                    PickerModalOverlay(showPickerModal: $showPickerModal, length: $length, gauge: $gauge)
-                }
-            }
             .toolbar {
                 if #available(iOS 26.0, *) {
                     ToolbarItem(placement: .topBarLeading) {
@@ -156,6 +199,19 @@ struct AddCigar: View {
                 }
             }
         }
+    }
+    
+    private static func normalizedLength(_ raw: String) -> String {
+        if raw.contains(".") {
+            if let value = Double(raw) {
+                return String(format: "%.2f", value)
+            }
+            return raw
+        }
+        if let value = Double(raw) {
+            return String(format: "%.2f", value)
+        }
+        return "6.00"
     }
 
     private func saveCigar() {
@@ -268,140 +324,87 @@ struct PhotoView: View {
 }
 
 
-struct CustomTextField: View {
+private struct IconTextFieldRow: View {
+    let systemImage: String
+    let title: String
     @Binding var text: String
-    var placeholder: String
-    var label: String
-    var systemImage: String
+    let placeholder: String
+    var keyboardType: UIKeyboardType = .default
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label)
-                .font(.footnote)
-                .fontWeight(.bold)
-                .foregroundColor(Color.gray)
-            
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary)
-                    .opacity(0.05)
-                
-                HStack {
-                    
-                    if text.isEmpty {
-                        Image(systemName: systemImage)
-                            .font(.footnote)
-                            .opacity(0.2)
-                            .frame(width: 24)
-                            .padding(.leading, 12)
-                    }
-                    
-                    if text.isEmpty {
-                        Text(placeholder)
-                            .font(.footnote)
-                            .opacity(0.2)
-                    }
-                }
-                
-                TextField("", text: $text, axis: .vertical)
-                    .padding(14)
-            }
+        HStack {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(.primary)
+            Spacer()
+            TextField(placeholder, text: $text)
+                .multilineTextAlignment(.trailing)
+                .keyboardType(keyboardType)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(title)
         }
-        .padding(.horizontal)
     }
 }
 
-struct CustomPickerField: View {
-    @Binding var selection: String
-    var label: String
-    var options: [String]
+private struct IconDateRow: View {
+    let systemImage: String
+    let title: String
+    @Binding var date: Date
     
     var body: some View {
-        VStack(alignment: .leading) {
-            
-            Text(label)
-                .font(.footnote)
-                .fontWeight(.bold)
-                .foregroundColor(.gray)
-            
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary)
-                    .opacity(0.05)
-                    .frame(height: 60)
-                
-                Picker(label, selection: $selection) {
-                    ForEach(options, id: \.self) { option in
-                        Text(option)
-                            .tag(option)
-                    }
-                }
-            }
+        HStack {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(.primary)
+            Spacer()
+            DatePicker(title, selection: $date, displayedComponents: .date)
+                .labelsHidden()
         }
-        .padding(.horizontal)
     }
 }
 
-// Components and logic for PickerModalOverlay below
-struct LengthGaugePicker: View {
-    @Binding var length: String
-    @Binding var gauge: String
-    @Binding var showPicker: Bool
-    @Binding var animationAmount: Double
+private struct IconRatingRow: View {
+    let systemImage: String
+    let title: String
+    @Binding var rating: Int
     
     var body: some View {
-        VStack {
-            Text("Length  x  Gauge")
-                .font(.headline)
-            
-            HStack {
-                Picker("Length", selection: $length) {
-                    ForEach(Array(3...9), id: \.self) { length in
-                        Text("\(length)").tag("\(length)")
-                    }
-                }
-                .pickerStyle(.wheel)
-                
-                Text("x")
-                
-                Picker("Gauge", selection: $gauge) {
-                    ForEach(Array(26...64), id: \.self) { gauge in
-                        Text("\(gauge)").tag("\(gauge)")
-                    }
-                }
-                .pickerStyle(.wheel)
-                
-            }
-            Button("Done") {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                    animationAmount = 0.5
-                    showPicker.toggle()
-                }
+        HStack {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(.primary)
+            Spacer()
+            StarRating(rating: rating, starSpacing: 4, isInteractive: true) { selected in
+                rating = selected
             }
         }
-        .padding()
     }
 }
 
-// Size (Length x Guage) modal overlay design
-private struct PickerModalOverlay: View {
-    @Binding var showPickerModal: Bool
-    @Binding var length: String
-    @Binding var gauge: String
-    @State private var animationAmount = 0.5
+private struct IconMenuRow: View {
+    let systemImage: String
+    let title: String
+    let value: String
+    let options: [String]
+    var onSelect: (String) -> Void
     
     var body: some View {
-        LengthGaugePicker(length: $length, gauge: $gauge, showPicker: $showPickerModal, animationAmount: $animationAmount)
-            .background(.ultraThinMaterial)
-            .frame(width: 300, height: 250)
-            .cornerRadius(24)
-            .shadow(radius: 20)
-            .scaleEffect(animationAmount)
-            .onAppear {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                    animationAmount = 1.0
+        HStack {
+            Label(title, systemImage: systemImage)
+                .foregroundStyle(.primary)
+            Spacer()
+            Menu {
+                ForEach(options, id: \.self) { option in
+                    Button(option) {
+                        onSelect(option)
+                    }
                 }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(value)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.secondary)
             }
+        }
     }
 }
 
