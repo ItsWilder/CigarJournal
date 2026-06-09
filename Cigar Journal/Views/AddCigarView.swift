@@ -3,6 +3,7 @@
 
 
 import SwiftUI
+import SwiftData
 import PhotosUI
 import UIKit
 
@@ -173,29 +174,17 @@ struct AddCigar: View {
             .listStyle(.insetGrouped)
             .navigationTitle(editCigar == nil ? "Add Cigar" : "Edit Cigar")
             .toolbar {
-                if #available(iOS 26.0, *) {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Cancel") {
-                            dismiss()
-                        }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Save") {
-                            saveCigar()
-                            dismiss()
-                        }
-                    }
-                } else {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Cancel") {
-                            dismiss()
-                        }
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Save") {
-                            saveCigar()
-                            dismiss()
-                        }
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button("Save") {
+                        saveCigar()
+                        dismiss()
                     }
                 }
             }

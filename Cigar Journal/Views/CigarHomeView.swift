@@ -271,31 +271,15 @@ struct ToolbarItems: ToolbarContent {
     }
 
     var body: some ToolbarContent {
-        if #available(iOS 26.0, *) {
             ToolbarItem(placement: .topBarLeading) {
                 if hasCigars {
                     EditButton()
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 addButton
-            }
-            ToolbarItem(placement: .primaryAction) {
                 overflowMenu
             }
-        } else {
-            ToolbarItem(placement: .navigationBarLeading) {
-                if hasCigars {
-                    EditButton()
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                addButton
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                overflowMenu
-            }
-        }
     }
 }
 

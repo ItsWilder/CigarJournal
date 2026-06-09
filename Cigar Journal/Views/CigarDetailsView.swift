@@ -106,19 +106,11 @@ struct CigarDetails: View {
             }
         }
         .toolbar {
-            if #available(iOS 26.0, *) {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Edit") {
                         isShowingEditSheet = true
                     }
                 }
-            } else {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Edit") {
-                        isShowingEditSheet = true
-                    }
-                }
-            }
         }
         .sheet(isPresented: $isShowingEditSheet) {
             AddCigar(editCigar: cigars[selectedIndex])
