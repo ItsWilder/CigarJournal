@@ -97,7 +97,7 @@ struct SmokeSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationBackground(.background)
     }
 

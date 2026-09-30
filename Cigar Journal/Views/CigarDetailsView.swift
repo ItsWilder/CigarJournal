@@ -81,22 +81,23 @@ struct CigarDetailView: View {
             }
         }
         .ignoresSafeArea()
-        .overlay(alignment: .top) {
-            if gallery.count > 1 {
-                let index = min(currentPhotoIndex ?? 0, gallery.count - 1)
-                Text("\(index + 1) of \(gallery.count)")
-                    .font(.caption.weight(.semibold))
-                    .monospacedDigit()
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .glassEffect(.regular, in: .capsule)
-                    .padding(.top, 8)
-                    .accessibilityLabel("Photo \(index + 1) of \(gallery.count)")
-            }
-        }
         .toolbar(.hidden, for: .tabBar)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if gallery.count > 1 {
+                ToolbarItem(placement: .topBarLeading) {
+                    let index = min(currentPhotoIndex ?? 0, gallery.count - 1)
+                    Button {
+                        activeSheet = .photo(gallery[index].id)
+                    } label: {
+                        Text("\(index + 1) of \(gallery.count)")
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                    }
+                    .accessibilityLabel("Photo \(index + 1) of \(gallery.count)")
+                    .accessibilityHint("Opens the photo full screen")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(cigar.isFavorite ? "Unfavorite" : "Favorite", systemImage: cigar.isFavorite ? "heart.fill" : "heart") {
                     cigar.isFavorite.toggle()
