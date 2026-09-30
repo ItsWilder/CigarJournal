@@ -1,19 +1,35 @@
 // SmokeSheet
-// Log a smoke (the first one, or another round of a cigar you've had before), and
-// restock the humidor.
+// Log a smoke (the first one, or another round of a cigar you've had before), edit
+// one you've already logged, and restock the humidor.
 
 import SwiftData
 import SwiftUI
 
 struct SmokeSheet: View {
     let cigar: CigarTemplate
+    /// The smoke being edited, or nil to log a new one.
+    let editing: SmokeEntry?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @State private var date = Date.now
-    @State private var rating = 3
-    @State private var notes = ""
+    @State private var date: Date
+    @State private var rating: Int
+    @State private var notes: String
+    @State private var confirmingDelete = false
+
+    init(cigar: CigarTemplate, editing: SmokeEntry? = nil) {
+        self.cigar = cigar
+        self.editing = editing
+        _date = State(initialValue: editing?.date ?? .now)
+        _rating = State(initialValue: editing?.rating ?? 3)
+        _notes = State(initialValue: editing?.notes ?? "")
+    }
+
+    private var title: String {
+        if editing != nil { return "Edit Smoke" }
+        return cigar.hasBeenSmoked ? "Smoke Again" : "Smoke"
+    }
 
     var body: some View {
         NavigationStack {
@@ -26,7 +42,7 @@ struct SmokeSheet: View {
                         StarRating(rating: rating, starSpacing: 4) { rating = $0 }
                     }
                 } footer: {
-                    if cigar.humidorCount > 0 {
+                    if editing == nil && cigar.humidorCount > 0 {
                         Text("Takes one out of your humidor (\(cigar.humidorCount - 1) left after this).")
                     }
                 }
@@ -35,8 +51,18 @@ struct SmokeSheet: View {
                     TextField("How did it smoke?", text: $notes, axis: .vertical)
                         .lineLimit(5...)
                 }
+
+                // The first smoke is the cigar itself; delete the cigar to remove it.
+                if editing?.session != nil {
+                    Section {
+                        Button("Delete This Smoke", role: .destructive) {
+                            confirmingDelete = true
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
             }
-            .navigationTitle(cigar.hasBeenSmoked ? "Smoke Again" : "Smoke")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -46,13 +72,38 @@ struct SmokeSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(role: .confirm) {
-                        cigar.recordSmoke(date: date, rating: rating, notes: notes, in: modelContext)
+                        save()
                         dismiss()
                     }
                 }
             }
+            .confirmationDialog("Delete this smoke?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    if let session = editing?.session {
+                        modelContext.delete(session)
+                    }
+                    dismiss()
+                }
+            }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(.background)
+    }
+
+    private func save() {
+        switch editing {
+        case nil:
+            cigar.recordSmoke(date: date, rating: rating, notes: notes, in: modelContext)
+        case let entry? where entry.session != nil:
+            entry.session?.date = date
+            entry.session?.rating = rating
+            entry.session?.notes = notes
+        case .some:
+            // The first smoke lives on the cigar itself.
+            cigar.date = date
+            cigar.rating = rating
+            cigar.notes = notes
+        }
     }
 }
 
@@ -88,5 +139,6 @@ struct RestockSheet: View {
             }
         }
         .presentationDetents([.height(220)])
+        .presentationBackground(.background)
     }
 }

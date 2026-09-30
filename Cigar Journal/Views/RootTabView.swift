@@ -18,3 +18,10 @@ struct RootTabView: View {
         }
     }
 }
+
+/// Each tab's navigation path. The details screen watches it so its panel can close
+/// the moment you go back, instead of lingering until the screen is gone.
+@Observable
+final class CigarNavigation {
+    var path: [CigarTemplate] = []
+}

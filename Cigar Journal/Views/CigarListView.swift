@@ -26,6 +26,7 @@ enum CigarShelf {
 }
 
 enum CigarSortOption: String, CaseIterable, Identifiable {
+    case favorites = "Favorites"
     case alphabetical = "Alphabetical"
     case date = "Date"
     case price = "Price"
@@ -36,6 +37,17 @@ enum CigarSortOption: String, CaseIterable, Identifiable {
 
     func sorted(_ cigars: [CigarTemplate]) -> [CigarTemplate] {
         switch self {
+        case .favorites:
+            // Favorites first, then most recently smoked (never-smoked last), then name.
+            cigars.sorted { a, b in
+                if a.isFavorite != b.isFavorite { return a.isFavorite }
+                switch (a.lastSmoked, b.lastSmoked) {
+                case let (dateA?, dateB?) where dateA != dateB: return dateA > dateB
+                case (.some, nil): return true
+                case (nil, .some): return false
+                default: return a.name.localizedStandardCompare(b.name) == .orderedAscending
+                }
+            }
         case .alphabetical:
             cigars.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         case .date:
@@ -59,11 +71,14 @@ struct CigarListScreen: View {
     @AppStorage("sortOption") private var sortOption: CigarSortOption = .date
     @AppStorage("lastBackupDate") private var lastBackupTimestamp: Double = 0
 
+    @State private var navigation = CigarNavigation()
     @State private var showAddCigar = false
     @State private var editingCigar: CigarTemplate?
     @State private var smokingCigar: CigarTemplate?
     @State private var cigarPendingDelete: CigarTemplate?
     @State private var showingSettings = false
+    @State private var hasAPIKey = KeychainStore.anthropicAPIKey != nil
+    @State private var confirmingRemoveKey = false
 
     // Backup
     @State private var backupDocument: CigarBackupDocument?
@@ -76,7 +91,7 @@ struct CigarListScreen: View {
     var body: some View {
         let visibleCigars = sortOption.sorted(cigars.filter(shelf.includes))
 
-        NavigationStack {
+        NavigationStack(path: $navigation.path) {
             Group {
                 if visibleCigars.isEmpty {
                     emptyState
@@ -107,7 +122,7 @@ struct CigarListScreen: View {
             }
             .navigationTitle(shelf.title)
             .navigationDestination(for: CigarTemplate.self) { cigar in
-                CigarDetailView(cigar: cigar)
+                CigarDetailView(cigar: cigar, navigation: navigation)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -122,17 +137,27 @@ struct CigarListScreen: View {
                     overflowMenu
                 }
             }
-            .sheet(isPresented: $showAddCigar) {
+            .sheet(isPresented: $showAddCigar, onDismiss: refreshAPIKeyState) {
                 AddCigar(startInHumidor: shelf == .humidor)
             }
-            .sheet(item: $editingCigar) { cigar in
+            .sheet(item: $editingCigar, onDismiss: refreshAPIKeyState) { cigar in
                 AddCigar(editCigar: cigar)
             }
+            // A key can also be added from Look Up Cigar inside the Add form.
+            .onAppear(perform: refreshAPIKeyState)
             .sheet(item: $smokingCigar) { cigar in
                 SmokeSheet(cigar: cigar)
             }
-            .sheet(isPresented: $showingSettings) {
+            .sheet(isPresented: $showingSettings, onDismiss: refreshAPIKeyState) {
                 SettingsView()
+            }
+            .confirmationDialog("Remove the API key?", isPresented: $confirmingRemoveKey, titleVisibility: .visible) {
+                Button("Remove API Key", role: .destructive) {
+                    KeychainStore.delete(KeychainStore.anthropicAPIKeyAccount)
+                    refreshAPIKeyState()
+                }
+            } message: {
+                Text("Look Up Cigar won't be able to search the web until you add a key again.")
             }
             .confirmationDialog(
                 "Delete \(cigarPendingDelete?.name ?? "Cigar")?",
@@ -240,8 +265,14 @@ struct CigarListScreen: View {
                 }
 
                 Section {
-                    Button("Lookup API Key…", systemImage: "key") {
-                        showingSettings = true
+                    if hasAPIKey {
+                        Button("Remove API Key…", systemImage: "key.slash", role: .destructive) {
+                            confirmingRemoveKey = true
+                        }
+                    } else {
+                        Button("Add API Key…", systemImage: "key") {
+                            showingSettings = true
+                        }
                     }
                 }
 
@@ -250,6 +281,10 @@ struct CigarListScreen: View {
                 }
             }
         }
+    }
+
+    private func refreshAPIKeyState() {
+        hasAPIKey = KeychainStore.anthropicAPIKey != nil
     }
 
     private var lastBackupText: String {

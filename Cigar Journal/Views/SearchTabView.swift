@@ -7,11 +7,12 @@ import SwiftUI
 struct SearchTabView: View {
     @Query(sort: \CigarTemplate.date, order: .reverse) private var cigars: [CigarTemplate]
     @State private var query = ""
+    @State private var navigation = CigarNavigation()
 
     var body: some View {
         let results = matches
 
-        NavigationStack {
+        NavigationStack(path: $navigation.path) {
             List(results) { cigar in
                 NavigationLink(value: cigar) {
                     CigarRowView(cigar: cigar, showsShelfTags: true)
@@ -31,7 +32,7 @@ struct SearchTabView: View {
             }
             .navigationTitle("Search")
             .navigationDestination(for: CigarTemplate.self) { cigar in
-                CigarDetailView(cigar: cigar)
+                CigarDetailView(cigar: cigar, navigation: navigation)
             }
         }
         .searchable(text: $query, prompt: "Name, store, wrapper, notes…")

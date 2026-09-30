@@ -10,6 +10,7 @@ import SwiftUI
 enum CigarDetailSheet: Identifiable {
     case edit
     case smoke
+    case editSmoke(SmokeEntry)
     case restock
     case storeMap(StorePlace)
     case photo
@@ -18,6 +19,7 @@ enum CigarDetailSheet: Identifiable {
         switch self {
         case .edit: "edit"
         case .smoke: "smoke"
+        case .editSmoke(let smoke): "smoke-\(smoke.id)"
         case .restock: "restock"
         case .storeMap(let place): "map-\(place.id)"
         case .photo: "photo"
@@ -27,16 +29,15 @@ enum CigarDetailSheet: Identifiable {
 
 struct CigarDetailView: View {
     let cigar: CigarTemplate
+    /// The tab's navigation path, so the panel can close as soon as you go back.
+    var navigation: CigarNavigation?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingPanel = true
-    @State private var detent = Self.peekDetent
     @State private var activeSheet: CigarDetailSheet?
     @State private var confirmingDelete = false
-
-    static let peekDetent = PresentationDetent.fraction(0.45)
 
     var body: some View {
         GeometryReader { proxy in
@@ -52,7 +53,7 @@ struct CigarDetailView: View {
                             activeSheet = .edit
                         }
 
-                    // Centered in the part of the screen the panel doesn't cover.
+                    // Near the top, in the part of the screen the panel doesn't cover.
                     Image(systemName: "photo.badge.plus")
                         .font(.system(size: 64))
                         .foregroundStyle(.accentDark)
@@ -82,7 +83,6 @@ struct CigarDetailView: View {
                     activeSheet = .restock
                 }
                 Button("Delete", systemImage: "trash") {
-                    detent = Self.peekDetent
                     confirmingDelete = true
                 }
             }
@@ -94,13 +94,13 @@ struct CigarDetailView: View {
                 confirmingDelete: $confirmingDelete,
                 onDelete: deleteCigar
             )
-            .presentationDetents([Self.peekDetent, .large], selection: $detent)
-            .presentationBackgroundInteraction(.enabled(upThrough: Self.peekDetent))
-            .presentationDragIndicator(.visible)
-            // Solid rather than the default see-through glass, so text stays readable
-            // over busy photos.
-            .presentationBackground(.background)
-            .interactiveDismissDisabled()
+        }
+        // Going back removes this cigar from the path right away; close the panel then,
+        // rather than after the screen has finished leaving.
+        .onChange(of: navigation?.path.contains(cigar) ?? true) { _, stillShown in
+            if !stillShown {
+                showingPanel = false
+            }
         }
         .onDisappear {
             showingPanel = false
@@ -128,33 +128,39 @@ private struct CigarInfoPanel: View {
 
     @Environment(\.modelContext) private var modelContext
 
+    /// Three stops: the summary, everything through the details grid, and full screen.
+    private enum Stop { case summary, details, full }
+
+    @State private var stop = Stop.summary
+    @State private var summaryBottom: CGFloat = 170
+    @State private var detailsBottom: CGFloat = 420
+    @State private var buttonAreaHeight: CGFloat = 80
+
+    private let topInset: CGFloat = 24
+    private nonisolated static let contentSpace = "panelContent"
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text(cigar.name)
-                    .font(.title.bold())
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(cigar.name)
+                        .font(.title.bold())
+                    keyFacts
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.contentSpace)).maxY } action: {
+                    summaryBottom = $0
+                }
 
-                keyFacts
-
-                Divider()
-
-                LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], alignment: .leading, spacing: 16) {
-                    DetailCell(title: "Store", systemImage: "storefront", value: cigar.displayLocation)
-                    DetailCell(title: "Price", systemImage: "banknote", value: cigar.displayPrice)
-                    DetailCell(title: "Rating", systemImage: "star.circle") {
-                        if let average = cigar.averageRating {
-                            StarRating(average: average)
-                                .font(.subheadline)
-                        } else {
-                            Text("Not smoked yet")
-                                .foregroundStyle(.secondary)
+                if !detailCells.isEmpty {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Divider()
+                        LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], alignment: .leading, spacing: 16) {
+                            ForEach(detailCells) { $0 }
                         }
                     }
-                    DetailCell(title: "Type", systemImage: "shippingbox", value: cigar.type)
-                    DetailCell(title: "Wrapper", systemImage: "leaf", value: cigar.wrapper)
-                    DetailCell(title: "Binder", systemImage: "square.stack.3d.up", value: cigar.binder)
-                    DetailCell(title: "Filler", systemImage: "square.3.layers.3d", value: cigar.filler)
-                    DetailCell(title: "Origin", systemImage: "globe.americas", value: cigar.origin)
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(Self.contentSpace)).maxY } action: {
+                        detailsBottom = $0
+                    }
                 }
 
                 if let place = cigar.storePlace {
@@ -166,7 +172,9 @@ private struct CigarInfoPanel: View {
                 smokesSection
             }
             .padding(.horizontal)
-            .padding(.top, 24)
+            .padding(.top, topInset)
+            // Measure against the content (which scrolls with it), so detents don't move while scrolling.
+            .coordinateSpace(.named(Self.contentSpace))
         }
         .safeAreaInset(edge: .bottom) {
             Button {
@@ -180,12 +188,27 @@ private struct CigarInfoPanel: View {
             .controlSize(.large)
             .tint(.accent)
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.vertical, 8)
+            // Solid behind the button so the next section doesn't peek out beneath it.
+            .background(.background)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                buttonAreaHeight = $0
+            }
+        }
+        .presentationDetents(Set(detents), selection: stopBinding)
+        .presentationBackgroundInteraction(.enabled(upThrough: detent(for: .details)))
+        .presentationDragIndicator(.visible)
+        // Solid rather than the default see-through glass, so text stays readable over photos.
+        .presentationBackground(.background)
+        .interactiveDismissDisabled()
+        .onChange(of: confirmingDelete) { _, confirming in
+            if confirming { stop = .summary }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .edit: AddCigar(editCigar: cigar)
             case .smoke: SmokeSheet(cigar: cigar)
+            case .editSmoke(let smoke): SmokeSheet(cigar: cigar, editing: smoke)
             case .restock: RestockSheet(cigar: cigar)
             case .storeMap(let place): StoresMapView(focus: place)
             case .photo: FullScreenPhoto(photo: cigar.photo)
@@ -196,6 +219,30 @@ private struct CigarInfoPanel: View {
         } message: {
             Text("This deletes the cigar and all its smokes, including from iCloud on all your devices.")
         }
+    }
+
+    // MARK: Detents
+
+    private var detents: [PresentationDetent] {
+        detailCells.isEmpty ? [detent(for: .summary), .large] : [detent(for: .summary), detent(for: .details), .large]
+    }
+
+    /// Heights come from measuring the content, plus the drag indicator and the button.
+    private func detent(for stop: Stop) -> PresentationDetent {
+        switch stop {
+        case .summary: .height(summaryBottom + buttonAreaHeight + 12)
+        case .details: detailCells.isEmpty ? .large : .height(detailsBottom + buttonAreaHeight + 12)
+        case .full: .large
+        }
+    }
+
+    private var stopBinding: Binding<PresentationDetent> {
+        Binding(
+            get: { detent(for: stop) },
+            set: { newValue in
+                stop = [Stop.summary, .details, .full].first { detent(for: $0) == newValue } ?? .summary
+            }
+        )
     }
 
     // MARK: Key facts
@@ -223,6 +270,27 @@ private struct CigarInfoPanel: View {
         return cigar.humidorCount > 0 ? "In Humidor" : "Not yet"
     }
 
+    // MARK: Details grid (blank fields are left out)
+
+    private var detailCells: [DetailCell] {
+        var cells: [DetailCell] = []
+        func add(_ title: String, _ icon: String, _ value: String?) {
+            guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return }
+            cells.append(DetailCell(title: title, systemImage: icon, value: .text(value)))
+        }
+        add("Store", "storefront", cigar.displayLocation)
+        add("Price", "banknote", cigar.displayPrice)
+        if let average = cigar.averageRating {
+            cells.append(DetailCell(title: "Rating", systemImage: "star.circle", value: .stars(average)))
+        }
+        add("Type", "shippingbox", cigar.type)
+        add("Wrapper", "leaf", cigar.wrapper)
+        add("Binder", "square.stack.3d.up", cigar.binder)
+        add("Filler", "square.3.layers.3d", cigar.filler)
+        add("Origin", "globe.americas", cigar.origin)
+        return cells
+    }
+
     // MARK: Notes and smoke history
 
     @ViewBuilder
@@ -234,25 +302,33 @@ private struct CigarInfoPanel: View {
                 Text("Smokes")
                     .font(.headline)
                 ForEach(smokes) { smoke in
-                    SmokeRow(smoke: smoke)
-                        .contextMenu {
-                            if let session = smoke.session {
-                                Button("Delete This Smoke", systemImage: "trash", role: .destructive) {
-                                    modelContext.delete(session)
-                                }
-                            }
-                        }
+                    Button {
+                        activeSheet = .editSmoke(smoke)
+                    } label: {
+                        SmokeRow(smoke: smoke)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Edit this smoke")
                     if smoke.id != smokes.last?.id {
                         Divider()
                     }
                 }
             }
-        } else if let notes = cigar.latestNotes {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Notes")
-                    .font(.headline)
-                Text(notes)
+        } else if let smoke = smokes.first, !smoke.notes.isEmpty {
+            Button {
+                activeSheet = .editSmoke(smoke)
+            } label: {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Notes")
+                        .font(.headline)
+                    Text(smoke.notes)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
             }
+            .buttonStyle(.plain)
+            .accessibilityHint("Edit notes")
         }
     }
 }
@@ -272,26 +348,31 @@ private struct KeyFact: View {
     }
 }
 
-private struct DetailCell<Content: View>: View {
+private struct DetailCell: View, Identifiable {
+    enum Value {
+        case text(String)
+        case stars(Double)
+    }
+
     let title: String
     let systemImage: String
-    @ViewBuilder var content: Content
+    let value: Value
+
+    var id: String { title }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(title, systemImage: systemImage)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            content
-                .foregroundStyle(.accent)
-        }
-    }
-}
-
-extension DetailCell where Content == Text {
-    init(title: String, systemImage: String, value: String?) {
-        self.init(title: title, systemImage: systemImage) {
-            Text(value.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 } ?? "—")
+            switch value {
+            case .text(let text):
+                Text(text)
+                    .foregroundStyle(.accent)
+            case .stars(let average):
+                StarRating(average: average)
+                    .font(.subheadline)
+            }
         }
     }
 }
@@ -300,18 +381,26 @@ private struct SmokeRow: View {
     let smoke: SmokeEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(smoke.date, format: .dateTime.month().day().year())
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                StarRating(rating: smoke.rating)
-                    .font(.caption)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(smoke.date, format: .dateTime.month().day().year())
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    StarRating(rating: smoke.rating)
+                        .font(.caption)
+                }
+                if !smoke.notes.isEmpty {
+                    Text(smoke.notes)
+                        .multilineTextAlignment(.leading)
+                }
             }
-            if !smoke.notes.isEmpty {
-                Text(smoke.notes)
-            }
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.top, 2)
         }
+        .contentShape(.rect)
     }
 }
 
