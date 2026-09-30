@@ -120,6 +120,12 @@ struct AddCigar: View {
                         .lineLimit(6...)
                 }
             }
+            .onChange(of: location) { _, newValue in
+                // Clearing the store name also clears its map location.
+                if newValue.trimmingCharacters(in: .whitespaces).isEmpty {
+                    storePlace = nil
+                }
+            }
             .sheet(isPresented: $showingStorePicker) {
                 StorePickerView(query: location) { place in
                     storePlace = place
@@ -173,7 +179,9 @@ struct AddCigar: View {
     private func saveCigar() {
         // The photo was already compressed when it was picked; storing it as-is
         // avoids losing JPEG quality on every edit.
-        let storedLocation = location.trimmingCharacters(in: .whitespaces).isEmpty ? CigarTemplate.emptyLocation : location
+        let hasStore = !location.trimmingCharacters(in: .whitespaces).isEmpty
+        let storedLocation = hasStore ? location : CigarTemplate.emptyLocation
+        let storedPlace = hasStore ? storePlace : nil
         let storedPrice = price.trimmingCharacters(in: .whitespaces).isEmpty ? CigarTemplate.emptyPrice : price
 
         if let cigar = editCigar {
@@ -190,7 +198,7 @@ struct AddCigar: View {
             if cigar.photo != photo {
                 cigar.photo = photo
             }
-            cigar.storePlace = storePlace
+            cigar.storePlace = storedPlace
         } else {
             let cigar = CigarTemplate(
                 name: trimmedName,
@@ -205,7 +213,7 @@ struct AddCigar: View {
                 date: date,
                 photo: photo
             )
-            cigar.storePlace = storePlace
+            cigar.storePlace = storedPlace
             modelContext.insert(cigar)
         }
     }

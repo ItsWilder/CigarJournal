@@ -42,6 +42,8 @@ struct CigarDetails: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
+        // Pages run to the bottom edge so text scrolls behind the home indicator too.
+        .ignoresSafeArea(.container, edges: .bottom)
         .navigationTransition(.zoom(sourceID: initialID, in: zoomNamespace))
         // An overlay, not a safe-area inset, so the page scrolls underneath the glass dots.
         .overlay(alignment: .bottom) {
