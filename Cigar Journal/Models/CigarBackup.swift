@@ -50,6 +50,7 @@ struct CigarBackup: Codable {
         /// Index into `smokeSessions` when the photo belongs to a later smoke.
         var smokeIndex: Int?
         var isFromFirstSmoke: Bool
+        var isKey: Bool?
     }
 
     struct Smoke: Codable {
@@ -94,7 +95,8 @@ extension CigarBackup {
                             dateAdded: photo.dateAdded,
                             sortOrder: photo.sortOrder,
                             smokeIndex: photo.smoke.flatMap { smoke in (cigar.smokeSessions ?? []).firstIndex(of: smoke) },
-                            isFromFirstSmoke: photo.isFromFirstSmoke
+                            isFromFirstSmoke: photo.isFromFirstSmoke,
+                            isKey: photo.isKey
                         )
                     }
                 }
@@ -169,6 +171,7 @@ extension CigarBackup {
                 context.insert(record)
                 record.dateAdded = photo.dateAdded
                 record.isFromFirstSmoke = photo.isFromFirstSmoke
+                record.isKey = photo.isKey ?? false
                 record.cigar = cigar
                 if let index = photo.smokeIndex, sessions.indices.contains(index) {
                     record.smoke = sessions[index]

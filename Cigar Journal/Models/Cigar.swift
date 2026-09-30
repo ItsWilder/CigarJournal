@@ -260,6 +260,9 @@ class CigarPhoto {
     var smoke: SmokeSession?
     /// Set for photos from the first smoke, which lives on the cigar rather than a session.
     var isFromFirstSmoke: Bool = false
+    /// The cigar's key photo (shown first and in lists). When none is set, the original
+    /// `photo` on the cigar is the key photo.
+    var isKey: Bool = false
 
     init(data: Data, sortOrder: Int) {
         self.data = data
@@ -267,11 +270,11 @@ class CigarPhoto {
     }
 }
 
-/// One photo in a cigar's gallery: the cover, or one of the extra photos.
+/// One photo in a cigar's gallery: the original photo on the cigar, or one of the extra photos.
 nonisolated struct GalleryPhoto: Identifiable {
     let id: AnyHashable
     let data: Data
-    /// Nil for the cover photo.
+    /// Nil for the original photo stored on the cigar.
     let record: CigarPhoto?
 }
 
@@ -280,13 +283,22 @@ extension CigarTemplate {
         (extraPhotos ?? []).sorted { ($0.sortOrder, $0.dateAdded) < ($1.sortOrder, $1.dateAdded) }
     }
 
-    /// The cover first, then every other photo.
+    /// An extra photo chosen as the key photo, if any.
+    private var keyRecord: CigarPhoto? {
+        sortedExtraPhotos.first { $0.isKey && $0.data != nil }
+    }
+
+    /// Every photo, key photo first.
     var gallery: [GalleryPhoto] {
         var items: [GalleryPhoto] = []
-        if let photo {
-            items.append(GalleryPhoto(id: "cover", data: photo, record: nil))
+        let key = keyRecord
+        if let key, let data = key.data {
+            items.append(GalleryPhoto(id: key.persistentModelID, data: data, record: key))
         }
-        for record in sortedExtraPhotos {
+        if let photo {
+            items.append(GalleryPhoto(id: "original", data: photo, record: nil))
+        }
+        for record in sortedExtraPhotos where record != key {
             if let data = record.data {
                 items.append(GalleryPhoto(id: record.persistentModelID, data: data, record: record))
             }
@@ -294,9 +306,16 @@ extension CigarTemplate {
         return items
     }
 
-    /// The photo shown in lists: the cover, or the first other photo if there's no cover.
+    /// The key photo, shown in lists and first on the details screen.
     var coverPhoto: Data? {
-        photo ?? sortedExtraPhotos.first(where: { $0.data != nil })?.data
+        gallery.first?.data
+    }
+
+    /// Makes a photo the key photo. Nil record means the original photo on the cigar.
+    func makeKeyPhoto(_ record: CigarPhoto?) {
+        for photo in extraPhotos ?? [] {
+            photo.isKey = (photo == record)
+        }
     }
 
     /// Photos taken at a given smoke.
@@ -308,8 +327,10 @@ extension CigarTemplate {
     }
 
     /// Adds photos to the cigar, optionally tied to a smoke (nil session + `firstSmoke` for the first).
-    func addPhotos(_ photos: [Data], session: SmokeSession? = nil, firstSmoke: Bool = false, in context: ModelContext) {
+    @discardableResult
+    func addPhotos(_ photos: [Data], session: SmokeSession? = nil, firstSmoke: Bool = false, in context: ModelContext) -> [CigarPhoto] {
         var nextOrder = (extraPhotos ?? []).map(\.sortOrder).max().map { $0 + 1 } ?? 0
+        var added: [CigarPhoto] = []
         for data in photos {
             let record = CigarPhoto(data: data, sortOrder: nextOrder)
             nextOrder += 1
@@ -317,7 +338,9 @@ extension CigarTemplate {
             record.cigar = self
             record.smoke = session
             record.isFromFirstSmoke = firstSmoke
+            added.append(record)
         }
+        return added
     }
 }
 

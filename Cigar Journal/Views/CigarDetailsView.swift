@@ -242,7 +242,7 @@ private struct CigarInfoPanel: View {
             case .editSmoke(let smoke): SmokeSheet(cigar: cigar, editing: smoke)
             case .restock: RestockSheet(cigar: cigar)
             case .storeMap(let place): StoresMapView(focus: place)
-            case .photo(let photoID): PhotoViewer(photos: cigar.gallery, startAt: photoID)
+            case .photo(let photoID): PhotoViewer(cigar: cigar, startAt: photoID)
             }
         }
         .confirmationDialog("Delete \(cigar.name)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -485,14 +485,27 @@ private struct PhotoThumbnailRow: View {
 
 /// Full-screen photos you can swipe through, each with pinch and double-tap zoom.
 private struct PhotoViewer: View {
-    let photos: [GalleryPhoto]
+    let cigar: CigarTemplate
+    /// Kept in state (not re-read from the cigar) so making a different photo the key
+    /// doesn't reshuffle what you're looking at.
+    @State private var photos: [GalleryPhoto]
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int?
 
-    init(photos: [GalleryPhoto], startAt photoID: AnyHashable) {
-        self.photos = photos
+    init(cigar: CigarTemplate, startAt photoID: AnyHashable) {
+        self.cigar = cigar
+        let photos = cigar.gallery
+        _photos = State(initialValue: photos)
         _currentIndex = State(initialValue: photos.firstIndex { $0.id == photoID } ?? 0)
+    }
+
+    private var current: GalleryPhoto? {
+        photos.isEmpty ? nil : photos[min(currentIndex ?? 0, photos.count - 1)]
+    }
+
+    private var currentIsKey: Bool {
+        current.map { $0.id == cigar.gallery.first?.id } ?? false
     }
 
     var body: some View {
@@ -525,6 +538,13 @@ private struct PhotoViewer: View {
                         .glassEffect(.regular, in: .capsule)
                 }
                 Spacer()
+                if photos.count > 1, let current {
+                    Button(currentIsKey ? "Key Photo" : "Make Key Photo", systemImage: currentIsKey ? "key.fill" : "key") {
+                        cigar.makeKeyPhoto(current.record)
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(currentIsKey)
+                }
                 Button("Close", systemImage: "xmark", role: .close) {
                     dismiss()
                 }

@@ -21,7 +21,6 @@ struct AddCigar: View {
     @State private var rating: Int
     @State private var notes: String
     @State private var date: Date
-    @State private var photo: Data?
     @State private var storePlace: StorePlace?
     @State private var showingStorePicker = false
     @State private var expandedWheel: String?
@@ -33,8 +32,10 @@ struct AddCigar: View {
     @State private var origin: String
     @State private var notSmokedYet: Bool
     @State private var humidorCount: Int
-    @State private var extraPhotos: [PendingPhoto]
-    private let originalExtraPhotos: [CigarPhoto]
+    /// Every photo, including the cigar's original one, key photo first.
+    @State private var photos: [PendingPhoto]
+    @State private var keyPhotoID: UUID?
+    private let originalRecords: [CigarPhoto]
 
     init(editCigar: CigarTemplate? = nil, startInHumidor: Bool = false) {
         self.editCigar = editCigar
@@ -49,7 +50,6 @@ struct AddCigar: View {
         _rating = State(initialValue: editCigar?.rating ?? 3)
         _notes = State(initialValue: editCigar?.notes ?? "")
         _date = State(initialValue: editCigar?.date ?? .now)
-        _photo = State(initialValue: editCigar?.photo)
         _storePlace = State(initialValue: editCigar?.storePlace)
         _wrapper = State(initialValue: editCigar?.wrapper ?? "")
         _binder = State(initialValue: editCigar?.binder ?? "")
@@ -57,34 +57,46 @@ struct AddCigar: View {
         _origin = State(initialValue: editCigar?.origin ?? "")
         _notSmokedYet = State(initialValue: editCigar.map { !$0.hasBeenSmoked } ?? startInHumidor)
         _humidorCount = State(initialValue: editCigar?.humidorCount ?? (startInHumidor ? 1 : 0))
-        let existingPhotos = editCigar?.sortedExtraPhotos ?? []
-        originalExtraPhotos = existingPhotos
-        _extraPhotos = State(initialValue: existingPhotos.compactMap { record in
-            record.data.map { PendingPhoto(data: $0, record: record) }
-        })
+        originalRecords = editCigar?.sortedExtraPhotos ?? []
+        let existing = (editCigar?.gallery ?? []).map { item in
+            PendingPhoto(data: item.data, record: item.record, isOriginal: item.record == nil)
+        }
+        _photos = State(initialValue: existing)
+        _keyPhotoID = State(initialValue: existing.first?.id)
     }
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    CigarPhotoPicker(selectedPhoto: $photo)
-                        .listRowInsets(EdgeInsets())
+                    // The key photo, big; it's also the one lists and lookups use.
+                    ZStack {
+                        CigarPhotoView(photo: keyPhotoData, maxPointSize: 500)
+                        if keyPhotoData == nil {
+                            Text("Add photos below")
+                                .font(.caption)
+                                .foregroundStyle(.accentDark)
+                                .padding(.top, 50)
+                        }
+                    }
+                    .frame(height: 300)
+                    .listRowInsets(EdgeInsets())
+                    .accessibilityLabel(keyPhotoData == nil ? "No photos yet" : "Key photo")
                 }
 
                 Section {
-                    PhotoStripEditor(photos: $extraPhotos)
+                    PhotoStripEditor(photos: $photos, keyPhotoID: $keyPhotoID)
                 } header: {
-                    Text("More Photos")
+                    Text("Photos")
                 } footer: {
-                    Text("The big photo above is the cover. Photos you add when smoking also show up with that smoke.")
+                    Text("Tap a photo to make it the key photo shown above and in your lists. Photos you add when smoking also show up with that smoke.")
                 }
 
                 Section("Details") {
                     IconTextFieldRow(systemImage: "plus.circle", title: "Name", text: $name) {
                         Button("Look Up Cigar", systemImage: "magnifyingglass") {
                             // Snapshot the current name and photo; the sheet shouldn't read form state later.
-                            lookupRequest = LookupRequest(query: trimmedName, photo: photo ?? extraPhotos.first?.data)
+                            lookupRequest = LookupRequest(query: trimmedName, photo: keyPhotoData)
                         }
                         .labelStyle(.iconOnly)
                         .buttonStyle(.borderless)
@@ -229,6 +241,10 @@ struct AddCigar: View {
         let photo: Data?
     }
 
+    private var keyPhotoData: Data? {
+        (photos.first { $0.id == keyPhotoID } ?? photos.first)?.data
+    }
+
     private var dateTitle: String {
         if notSmokedYet { return "Date Added" }
         return (editCigar?.smokeCount ?? 0) > 1 ? "First Smoked" : "Date"
@@ -279,12 +295,13 @@ struct AddCigar: View {
             cigar.rating = rating
             cigar.notes = notes
             cigar.date = date
-            if cigar.photo != photo {
-                cigar.photo = photo
+            // The original photo is kept unless it was removed.
+            if !photos.contains(where: \.isOriginal) {
+                cigar.photo = nil
             }
             cigar.storePlace = storedPlace
             applyNewFields(to: cigar)
-            cigar.savePhotos(extraPhotos, original: originalExtraPhotos, in: modelContext)
+            savePhotos(to: cigar, original: originalRecords)
         } else {
             let cigar = CigarTemplate(
                 name: trimmedName,
@@ -296,15 +313,21 @@ struct AddCigar: View {
                 strength: strength,
                 rating: rating,
                 notes: notes,
-                date: date,
-                photo: photo
+                date: date
             )
             cigar.storePlace = storedPlace
             cigar.hasBeenSmoked = !notSmokedYet
             applyNewFields(to: cigar)
             modelContext.insert(cigar)
-            cigar.savePhotos(extraPhotos, original: [], in: modelContext)
+            savePhotos(to: cigar, original: [])
         }
+    }
+
+    /// Saves the photo list and which one is the key photo.
+    private func savePhotos(to cigar: CigarTemplate, original: [CigarPhoto]) {
+        let added = cigar.savePhotos(photos, original: original, in: modelContext)
+        guard let key = photos.first(where: { $0.id == keyPhotoID }) else { return }
+        cigar.makeKeyPhoto(key.isOriginal ? nil : (key.record ?? added[key.id]))
     }
 
     private func applyNewFields(to cigar: CigarTemplate) {
