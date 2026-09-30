@@ -28,6 +28,21 @@ class CigarTemplate {
     var storeLongitude: Double?
     var storeAddress: String?
 
+    // 2.0: tobacco, favorites, humidor and repeat smokes.
+    var wrapper: String?
+    var binder: String?
+    var filler: String?
+    var origin: String?
+    var isFavorite: Bool = false
+    /// How many of this cigar are in the humidor right now.
+    var humidorCount: Int = 0
+    /// False for a cigar bought for the humidor and not smoked yet. Existing cigars
+    /// default to true: their `date`, `rating` and `notes` are their first smoke.
+    var hasBeenSmoked: Bool = true
+    /// Every smoke after the first (the first lives in `date`, `rating` and `notes`).
+    @Relationship(deleteRule: .cascade, inverse: \SmokeSession.cigar)
+    var smokeSessions: [SmokeSession]? = []
+
     init(name: String, type: String, length: String, gauge: String, location: String, price: String, strength: String, rating: Int, notes: String, date: Date, photo: Data? = nil) {
         self.name = name
         self.type = type
@@ -140,6 +155,83 @@ extension CigarTemplate {
     nonisolated static func normalizedLength(_ raw: String) -> String {
         guard let inches = parseLength(raw) else { return raw.isEmpty ? "6.00" : raw }
         return formatLength((inches * 8).rounded() / 8)
+    }
+}
+
+// MARK: - Smokes
+
+/// A repeat smoke of a cigar already in the journal.
+@Model
+class SmokeSession {
+    var date: Date = Date()
+    var rating: Int = 3
+    var notes: String = ""
+    var cigar: CigarTemplate?
+
+    init(date: Date, rating: Int, notes: String) {
+        self.date = date
+        self.rating = rating
+        self.notes = notes
+    }
+}
+
+/// One smoke, whether it's the cigar's first (stored on the cigar) or a later session.
+nonisolated struct SmokeEntry: Identifiable {
+    let id: AnyHashable
+    let date: Date
+    let rating: Int
+    let notes: String
+    /// Nil for the first smoke.
+    let session: SmokeSession?
+}
+
+extension CigarTemplate {
+    /// Every smoke, newest first.
+    var smokes: [SmokeEntry] {
+        guard hasBeenSmoked else { return [] }
+        let first = SmokeEntry(id: "first", date: date, rating: rating, notes: notes, session: nil)
+        let later = (smokeSessions ?? []).map {
+            SmokeEntry(id: $0.persistentModelID, date: $0.date, rating: $0.rating, notes: $0.notes, session: $0)
+        }
+        return ([first] + later).sorted { $0.date > $1.date }
+    }
+
+    var smokeCount: Int {
+        hasBeenSmoked ? 1 + (smokeSessions?.count ?? 0) : 0
+    }
+
+    var lastSmoked: Date? {
+        smokes.first?.date
+    }
+
+    /// Average rating across every smoke, or nil if it hasn't been smoked.
+    var averageRating: Double? {
+        let ratings = smokes.map(\.rating)
+        guard !ratings.isEmpty else { return nil }
+        return Double(ratings.reduce(0, +)) / Double(ratings.count)
+    }
+
+    /// Notes from the most recent smoke that has any.
+    var latestNotes: String? {
+        smokes.first { !$0.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?.notes
+    }
+
+    /// Records a smoke: the first one fills the cigar itself, later ones become sessions.
+    /// Takes one out of the humidor if there are any.
+    func recordSmoke(date: Date, rating: Int, notes: String, in context: ModelContext) {
+        if hasBeenSmoked {
+            let session = SmokeSession(date: date, rating: rating, notes: notes)
+            context.insert(session)
+            session.cigar = self
+        } else {
+            hasBeenSmoked = true
+            self.date = date
+            self.rating = rating
+            self.notes = notes
+        }
+        if humidorCount > 0 {
+            humidorCount -= 1
+        }
     }
 }
 

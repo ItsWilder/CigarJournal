@@ -9,7 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct CigarBackup: Codable {
-    var version = 1
+    var version = 2
     var exportedAt: Date
     var cigars: [Entry]
 
@@ -30,6 +30,21 @@ struct CigarBackup: Codable {
         var storeLatitude: Double?
         var storeLongitude: Double?
         var storeAddress: String?
+        // Added in 2.0; older backups don't have them, so all are optional.
+        var wrapper: String?
+        var binder: String?
+        var filler: String?
+        var origin: String?
+        var isFavorite: Bool?
+        var humidorCount: Int?
+        var hasBeenSmoked: Bool?
+        var smokeSessions: [Smoke]?
+    }
+
+    struct Smoke: Codable {
+        var date: Date
+        var rating: Int
+        var notes: String
     }
 }
 
@@ -52,7 +67,15 @@ extension CigarBackup {
                 storePlaceID: cigar.storePlaceID,
                 storeLatitude: cigar.storeLatitude,
                 storeLongitude: cigar.storeLongitude,
-                storeAddress: cigar.storeAddress
+                storeAddress: cigar.storeAddress,
+                wrapper: cigar.wrapper,
+                binder: cigar.binder,
+                filler: cigar.filler,
+                origin: cigar.origin,
+                isFavorite: cigar.isFavorite,
+                humidorCount: cigar.humidorCount,
+                hasBeenSmoked: cigar.hasBeenSmoked,
+                smokeSessions: (cigar.smokeSessions ?? []).map { Smoke(date: $0.date, rating: $0.rating, notes: $0.notes) }
             )
         }
     }
@@ -104,7 +127,19 @@ extension CigarBackup {
             cigar.storeLatitude = entry.storeLatitude
             cigar.storeLongitude = entry.storeLongitude
             cigar.storeAddress = entry.storeAddress
+            cigar.wrapper = entry.wrapper
+            cigar.binder = entry.binder
+            cigar.filler = entry.filler
+            cigar.origin = entry.origin
+            cigar.isFavorite = entry.isFavorite ?? false
+            cigar.humidorCount = entry.humidorCount ?? 0
+            cigar.hasBeenSmoked = entry.hasBeenSmoked ?? true
             context.insert(cigar)
+            for smoke in entry.smokeSessions ?? [] {
+                let session = SmokeSession(date: smoke.date, rating: smoke.rating, notes: smoke.notes)
+                context.insert(session)
+                session.cigar = cigar
+            }
         }
     }
 }
