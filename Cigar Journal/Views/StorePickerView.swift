@@ -1,15 +1,17 @@
 // StorePickerView
-// Search Apple Maps for the shop where a cigar was bought. Shops near you are
-// listed first when location access is allowed.
+// Search Apple Maps for the shop where a cigar was bought. Stores already saved on
+// other cigars are suggested first; Apple Maps results near you come after.
 
 import CoreLocation
 import MapKit
+import SwiftData
 import SwiftUI
 
 struct StorePickerView: View {
     let onSelect: (StorePlace) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \CigarTemplate.date, order: .reverse) private var cigars: [CigarTemplate]
 
     @State private var query: String
     @State private var results: [MKMapItem] = []
@@ -24,20 +26,55 @@ struct StorePickerView: View {
 
     var body: some View {
         NavigationStack {
+            let saved = savedStores
+            let savedIDs = Set(saved.compactMap(\.placeID))
+            let mapResults = results.filter { item in
+                item.identifier.map { !savedIDs.contains($0.rawValue) } ?? true
+            }
+
             List {
-                ForEach(results, id: \.self) { item in
-                    Button {
-                        if let place = StorePlace(mapItem: item) {
-                            onSelect(place)
+                if !saved.isEmpty {
+                    Section(trimmedQuery.isEmpty ? "Your Recent Stores" : "Your Stores") {
+                        ForEach(saved) { place in
+                            Button {
+                                onSelect(place)
+                                dismiss()
+                            } label: {
+                                StoreResultRow(
+                                    name: place.name,
+                                    address: place.address,
+                                    location: CLLocation(latitude: place.latitude, longitude: place.longitude),
+                                    userLocation: userLocation
+                                )
+                            }
                         }
-                        dismiss()
-                    } label: {
-                        StoreResultRow(item: item, userLocation: userLocation)
+                    }
+                }
+
+                if !mapResults.isEmpty {
+                    Section(saved.isEmpty ? "" : "Apple Maps") {
+                        ForEach(mapResults, id: \.self) { item in
+                            Button {
+                                if let place = StorePlace(mapItem: item) {
+                                    onSelect(place)
+                                }
+                                dismiss()
+                            } label: {
+                                StoreResultRow(
+                                    name: item.name ?? "Unknown",
+                                    address: item.singleLineAddress,
+                                    location: item.location,
+                                    userLocation: userLocation
+                                )
+                            }
+                        }
                     }
                 }
             }
             .overlay {
-                if isSearching && results.isEmpty {
+                if !saved.isEmpty {
+                    EmptyView()
+                } else if isSearching && results.isEmpty {
                     ProgressView()
                 } else if results.isEmpty {
                     ContentUnavailableView(
@@ -76,6 +113,28 @@ struct StorePickerView: View {
 
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Map locations already saved on other cigars whose store name matches the query,
+    /// exact matches first. With no query, the most recently used stores.
+    private var savedStores: [StorePlace] {
+        var seen = Set<String>()
+        let places = cigars.compactMap(\.storePlace).filter { seen.insert($0.id).inserted }
+
+        let wanted = Self.normalized(trimmedQuery)
+        guard !wanted.isEmpty else { return Array(places.prefix(5)) }
+
+        let matches = places.filter { place in
+            let name = Self.normalized(place.name)
+            return name.contains(wanted) || wanted.contains(name)
+        }
+        return matches.filter { Self.normalized($0.name) == wanted }
+            + matches.filter { Self.normalized($0.name) != wanted }
+    }
+
+    private static func normalized(_ text: String) -> String {
+        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func search() async {
@@ -127,16 +186,18 @@ struct StorePickerView: View {
 }
 
 private struct StoreResultRow: View {
-    let item: MKMapItem
+    let name: String
+    let address: String?
+    let location: CLLocation
     let userLocation: CLLocation?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name ?? "Unknown")
+                Text(name)
                     .font(.headline)
                     .foregroundStyle(.primary)
-                if let address = item.singleLineAddress {
+                if let address {
                     Text(address)
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -144,7 +205,7 @@ private struct StoreResultRow: View {
             }
             Spacer()
             if let userLocation {
-                let meters = item.location.distance(from: userLocation)
+                let meters = location.distance(from: userLocation)
                 Text(Measurement(value: meters, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road)))
                     .font(.callout)
                     .foregroundStyle(.secondary)
