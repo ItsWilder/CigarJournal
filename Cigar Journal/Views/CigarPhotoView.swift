@@ -17,20 +17,21 @@ struct CigarPhotoView: View {
     @State private var image: UIImage?
 
     var body: some View {
-        ZStack {
-            background
-
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: contentMode)
-            } else if photo == nil {
-                Image(systemName: "photo.on.rectangle")
-                    .font(.title2)
-                    .foregroundStyle(.accentDark)
+        // The background sets the size (whatever frame the caller gives it); the photo is an
+        // overlay so a filled image can never grow the view past that frame.
+        background
+            .overlay {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: contentMode)
+                } else if photo == nil {
+                    Image(systemName: "photo.on.rectangle")
+                        .font(.title2)
+                        .foregroundStyle(.accentDark)
+                }
             }
-        }
-        .clipped()
+            .clipped()
         .task(id: loadKey) {
             image = await PhotoThumbnailCache.image(for: photo, maxPixelSize: maxPointSize * displayScale)
         }
