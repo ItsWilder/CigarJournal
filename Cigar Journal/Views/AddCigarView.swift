@@ -22,6 +22,8 @@ struct AddCigar: View {
     @State private var date: Date
     @State private var photo: Data?
     @State private var expandedWheel: String?
+    @State private var showingLookup = false
+    @State private var lookupSource: URL?
 
     init(editCigar: CigarTemplate? = nil) {
         self.editCigar = editCigar
@@ -48,7 +50,19 @@ struct AddCigar: View {
                 }
 
                 Section("Details") {
-                    IconTextFieldRow(systemImage: "plus.circle", title: "Name", text: $name)
+                    IconTextFieldRow(systemImage: "plus.circle", title: "Name", text: $name) {
+                        Button("Look Up Cigar", systemImage: "magnifyingglass") {
+                            showingLookup = true
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.borderless)
+                    }
+                    if let lookupSource {
+                        Link(destination: lookupSource) {
+                            Label("Filled from \(lookupSource.host() ?? "the web")", systemImage: "link")
+                                .font(.footnote)
+                        }
+                    }
                     IconTextFieldRow(systemImage: "storefront", title: "Store", text: $location)
                     IconTextFieldRow(systemImage: "dollarsign.circle", title: "Price", text: $price, keyboardType: .decimalPad)
                     IconDateRow(systemImage: "calendar", title: "Date", date: $date)
@@ -83,6 +97,9 @@ struct AddCigar: View {
                         .lineLimit(6...)
                 }
             }
+            .sheet(isPresented: $showingLookup) {
+                CigarLookupView(query: trimmedName, onSelect: apply)
+            }
             .navigationTitle(editCigar == nil ? "Add Cigar" : "Edit Cigar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -112,6 +129,16 @@ struct AddCigar: View {
             get: { expandedWheel == id },
             set: { expandedWheel = $0 ? id : nil }
         )
+    }
+
+    /// Fills in the details a lookup found, leaving the rest of the form as it was.
+    private func apply(_ selection: CigarLookupSelection) {
+        name = selection.name
+        if let type = selection.type { self.type = type }
+        if let length = selection.length { self.length = length }
+        if let gauge = selection.gauge { self.gauge = gauge }
+        if let strength = selection.strength { self.strength = strength }
+        lookupSource = selection.sourceURL
     }
 
     private func saveCigar() {

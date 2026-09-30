@@ -49,6 +49,7 @@ struct CigarsHome: View {
     @State private var showAddCigar = false
     @State private var editingCigar: CigarTemplate?
     @State private var cigarPendingDelete: CigarTemplate?
+    @State private var showingSettings = false
     @Namespace private var zoomNamespace
 
     // Backup
@@ -121,6 +122,9 @@ struct CigarsHome: View {
             .sheet(item: $editingCigar) { cigar in
                 AddCigar(editCigar: cigar)
             }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
             .confirmationDialog(
                 "Delete \(cigarPendingDelete?.name ?? "Cigar")?",
                 isPresented: isPresented($cigarPendingDelete),
@@ -188,6 +192,12 @@ struct CigarsHome: View {
                     showingRestorePicker = true
                 }
                 Text(lastBackupText)
+            }
+
+            Section {
+                Button("Lookup API Key…", systemImage: "key") {
+                    showingSettings = true
+                }
             }
 
             Section {

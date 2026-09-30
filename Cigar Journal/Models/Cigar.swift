@@ -39,12 +39,12 @@ class CigarTemplate {
 // MARK: - Options and display helpers
 
 extension CigarTemplate {
-    static let typeOptions = [
+    nonisolated static let typeOptions = [
         "Petite Corona", "Half Corona", "Corona", "Rothschild", "Robusto", "Toro", "Gordo",
         "Lonsdale", "Churchill", "Lancero", "Double Corona", "Presidente", "Grande",
         "Torpedo", "Belicoso", "Perfecto"
     ]
-    static let strengthOptions = ["Mild", "Medium", "Strong"]
+    nonisolated static let strengthOptions = ["Mild", "Medium", "Strong"]
     static let lengthOptions = stride(from: 3.0, through: 9.0, by: 0.125).map(formatLength)
     static let gaugeOptions = Array(26...70).map(String.init)
 
