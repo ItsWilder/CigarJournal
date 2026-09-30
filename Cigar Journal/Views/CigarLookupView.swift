@@ -94,7 +94,11 @@ struct CigarLookupView: View {
                                     type: cigar.type,
                                     length: CigarTemplate.normalizedLength(cigar.length),
                                     gauge: cigar.gauge,
-                                    strength: cigar.strength
+                                    strength: cigar.strength,
+                                    wrapper: cigar.wrapper,
+                                    binder: cigar.binder,
+                                    filler: cigar.filler,
+                                    origin: cigar.origin
                                 ))
                             } label: {
                                 ResultRow(
@@ -172,7 +176,7 @@ struct CigarLookupView: View {
                             } label: {
                                 ResultRow(
                                     title: candidate.name,
-                                    detail: [candidate.shape, candidate.sizeText, candidate.strength]
+                                    detail: [candidate.shape, candidate.sizeText, candidate.strength, candidate.wrapper]
                                         .compactMap { $0 }
                                         .joined(separator: "  •  "),
                                     source: candidate.sourceURL?.host(),
@@ -241,6 +245,10 @@ struct CigarLookupView: View {
             length: candidate.lengthInches.map { CigarTemplate.normalizedLength(CigarTemplate.formatLength($0)) },
             gauge: candidate.ringGauge.map(String.init),
             strength: candidate.strength,
+            wrapper: candidate.wrapper,
+            binder: candidate.binder,
+            filler: candidate.filler,
+            origin: candidate.origin,
             sourceURL: candidate.sourceURL
         ))
     }

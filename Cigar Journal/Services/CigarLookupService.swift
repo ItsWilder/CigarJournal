@@ -19,6 +19,10 @@ struct CigarLookupCandidate: Identifiable, Hashable, Sendable {
     let ringGauge: Int?
     let shape: String?
     let strength: String?
+    let wrapper: String?
+    let binder: String?
+    let filler: String?
+    let origin: String?
     let sourceURL: URL?
     /// Whether this size looks consistent with the cigar in the photo.
     let matchesPhoto: Bool
@@ -161,6 +165,9 @@ nonisolated struct CigarLookupService {
         - Return at most 10 candidates, most likely first.
         - Only report sizes and strength stated on the pages you found; use null when a value \
         isn't stated. Never estimate.
+        - Also report the tobacco when the pages state it: wrapper (e.g. "Ecuadorian \
+        Habano", "San Andrés Maduro"), binder, filler (e.g. "Nicaragua, Dominican Republic") and \
+        origin (the country where it's made). Keep each short; use null when not stated.
         - Map strength to Mild, Medium or Strong (mild-medium is Medium; medium-full and full are Strong).
         - If nothing matches, call report_candidates with an empty list and say why in note.
 
@@ -197,7 +204,7 @@ nonisolated struct CigarLookupService {
                         "items": [
                             "type": "object",
                             "additionalProperties": false,
-                            "required": ["name", "line", "vitola", "lengthInches", "ringGauge", "shape", "strength", "sourceURL", "matchesPhoto"],
+                            "required": ["name", "line", "vitola", "lengthInches", "ringGauge", "shape", "strength", "wrapper", "binder", "filler", "origin", "sourceURL", "matchesPhoto"],
                             "properties": [
                                 "name": ["type": "string", "description": "Full name as commonly written, e.g. \"Acid Kuba Kuba\" or \"H. Upmann Vintage Cameroon Robusto\"."],
                                 "line": ["type": "string", "description": "Brand and line, used for grouping, e.g. \"Acid Classic\"."],
@@ -209,6 +216,10 @@ nonisolated struct CigarLookupService {
                                     "description": "The closest standard shape for this size."
                                 ],
                                 "strength": ["anyOf": [["type": "string", "enum": ["Mild", "Medium", "Strong"]], ["type": "null"]]],
+                                "wrapper": ["anyOf": [["type": "string"], ["type": "null"]], "description": "Wrapper leaf, e.g. \"Ecuadorian Habano\"."],
+                                "binder": ["anyOf": [["type": "string"], ["type": "null"]]],
+                                "filler": ["anyOf": [["type": "string"], ["type": "null"]], "description": "Filler countries or leaf, e.g. \"Nicaragua, Dominican Republic\"."],
+                                "origin": ["anyOf": [["type": "string"], ["type": "null"]], "description": "Country where the cigar is made."],
                                 "sourceURL": ["type": "string", "description": "The page these details came from."],
                                 "matchesPhoto": ["type": "boolean", "description": "True when this size looks consistent with the cigar in the photo."]
                             ]
@@ -220,6 +231,11 @@ nonisolated struct CigarLookupService {
     }
 
     // MARK: Response
+
+    private static func nonEmpty(_ value: Any?) -> String? {
+        guard let text = (value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        return text
+    }
 
     private static func parseCandidates(_ input: [String: Any]) -> CigarLookupResult {
         let rawCandidates = input["candidates"] as? [[String: Any]] ?? []
@@ -235,6 +251,10 @@ nonisolated struct CigarLookupService {
                 ringGauge: (raw["ringGauge"] as? NSNumber)?.intValue,
                 shape: raw["shape"] as? String,
                 strength: raw["strength"] as? String,
+                wrapper: nonEmpty(raw["wrapper"]),
+                binder: nonEmpty(raw["binder"]),
+                filler: nonEmpty(raw["filler"]),
+                origin: nonEmpty(raw["origin"]),
                 sourceURL: (raw["sourceURL"] as? String).flatMap(URL.init(string:)),
                 matchesPhoto: raw["matchesPhoto"] as? Bool ?? false
             )
