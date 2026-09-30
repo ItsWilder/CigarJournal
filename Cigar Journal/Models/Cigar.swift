@@ -42,6 +42,9 @@ class CigarTemplate {
     /// Every smoke after the first (the first lives in `date`, `rating` and `notes`).
     @Relationship(deleteRule: .cascade, inverse: \SmokeSession.cigar)
     var smokeSessions: [SmokeSession]? = []
+    /// Photos beyond the cover (`photo`), which stays where it's always been.
+    @Relationship(deleteRule: .cascade, inverse: \CigarPhoto.cigar)
+    var extraPhotos: [CigarPhoto]? = []
 
     init(name: String, type: String, length: String, gauge: String, location: String, price: String, strength: String, rating: Int, notes: String, date: Date, photo: Data? = nil) {
         self.name = name
@@ -167,6 +170,9 @@ class SmokeSession {
     var rating: Int = 3
     var notes: String = ""
     var cigar: CigarTemplate?
+    /// Photos taken at this smoke. Deleting the smoke keeps them on the cigar.
+    @Relationship(deleteRule: .nullify, inverse: \CigarPhoto.smoke)
+    var photos: [CigarPhoto]? = []
 
     init(date: Date, rating: Int, notes: String) {
         self.date = date
@@ -218,19 +224,99 @@ extension CigarTemplate {
 
     /// Records a smoke: the first one fills the cigar itself, later ones become sessions.
     /// Takes one out of the humidor if there are any.
-    func recordSmoke(date: Date, rating: Int, notes: String, in context: ModelContext) {
+    /// Returns the new session, or nil when this was the first smoke (stored on the cigar).
+    @discardableResult
+    func recordSmoke(date: Date, rating: Int, notes: String, in context: ModelContext) -> SmokeSession? {
+        defer {
+            if humidorCount > 0 {
+                humidorCount -= 1
+            }
+        }
         if hasBeenSmoked {
             let session = SmokeSession(date: date, rating: rating, notes: notes)
             context.insert(session)
             session.cigar = self
+            return session
         } else {
             hasBeenSmoked = true
             self.date = date
             self.rating = rating
             self.notes = notes
+            return nil
         }
-        if humidorCount > 0 {
-            humidorCount -= 1
+    }
+}
+
+// MARK: - Photos
+
+/// A photo of a cigar beyond its cover, optionally from a particular smoke.
+@Model
+class CigarPhoto {
+    /// Stored as a separate file (a CloudKit asset), not inside the record.
+    @Attribute(.externalStorage) var data: Data?
+    var dateAdded: Date = Date()
+    var sortOrder: Int = 0
+    var cigar: CigarTemplate?
+    var smoke: SmokeSession?
+    /// Set for photos from the first smoke, which lives on the cigar rather than a session.
+    var isFromFirstSmoke: Bool = false
+
+    init(data: Data, sortOrder: Int) {
+        self.data = data
+        self.sortOrder = sortOrder
+    }
+}
+
+/// One photo in a cigar's gallery: the cover, or one of the extra photos.
+nonisolated struct GalleryPhoto: Identifiable {
+    let id: AnyHashable
+    let data: Data
+    /// Nil for the cover photo.
+    let record: CigarPhoto?
+}
+
+extension CigarTemplate {
+    var sortedExtraPhotos: [CigarPhoto] {
+        (extraPhotos ?? []).sorted { ($0.sortOrder, $0.dateAdded) < ($1.sortOrder, $1.dateAdded) }
+    }
+
+    /// The cover first, then every other photo.
+    var gallery: [GalleryPhoto] {
+        var items: [GalleryPhoto] = []
+        if let photo {
+            items.append(GalleryPhoto(id: "cover", data: photo, record: nil))
+        }
+        for record in sortedExtraPhotos {
+            if let data = record.data {
+                items.append(GalleryPhoto(id: record.persistentModelID, data: data, record: record))
+            }
+        }
+        return items
+    }
+
+    /// The photo shown in lists: the cover, or the first other photo if there's no cover.
+    var coverPhoto: Data? {
+        photo ?? sortedExtraPhotos.first(where: { $0.data != nil })?.data
+    }
+
+    /// Photos taken at a given smoke.
+    func photos(for smoke: SmokeEntry) -> [CigarPhoto] {
+        if let session = smoke.session {
+            return (session.photos ?? []).sorted { $0.dateAdded < $1.dateAdded }
+        }
+        return sortedExtraPhotos.filter(\.isFromFirstSmoke)
+    }
+
+    /// Adds photos to the cigar, optionally tied to a smoke (nil session + `firstSmoke` for the first).
+    func addPhotos(_ photos: [Data], session: SmokeSession? = nil, firstSmoke: Bool = false, in context: ModelContext) {
+        var nextOrder = (extraPhotos ?? []).map(\.sortOrder).max().map { $0 + 1 } ?? 0
+        for data in photos {
+            let record = CigarPhoto(data: data, sortOrder: nextOrder)
+            nextOrder += 1
+            context.insert(record)
+            record.cigar = self
+            record.smoke = session
+            record.isFromFirstSmoke = firstSmoke
         }
     }
 }

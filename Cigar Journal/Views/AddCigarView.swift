@@ -33,6 +33,8 @@ struct AddCigar: View {
     @State private var origin: String
     @State private var notSmokedYet: Bool
     @State private var humidorCount: Int
+    @State private var extraPhotos: [PendingPhoto]
+    private let originalExtraPhotos: [CigarPhoto]
 
     init(editCigar: CigarTemplate? = nil, startInHumidor: Bool = false) {
         self.editCigar = editCigar
@@ -55,6 +57,11 @@ struct AddCigar: View {
         _origin = State(initialValue: editCigar?.origin ?? "")
         _notSmokedYet = State(initialValue: editCigar.map { !$0.hasBeenSmoked } ?? startInHumidor)
         _humidorCount = State(initialValue: editCigar?.humidorCount ?? (startInHumidor ? 1 : 0))
+        let existingPhotos = editCigar?.sortedExtraPhotos ?? []
+        originalExtraPhotos = existingPhotos
+        _extraPhotos = State(initialValue: existingPhotos.compactMap { record in
+            record.data.map { PendingPhoto(data: $0, record: record) }
+        })
     }
 
     var body: some View {
@@ -65,11 +72,19 @@ struct AddCigar: View {
                         .listRowInsets(EdgeInsets())
                 }
 
+                Section {
+                    PhotoStripEditor(photos: $extraPhotos)
+                } header: {
+                    Text("More Photos")
+                } footer: {
+                    Text("The big photo above is the cover. Photos you add when smoking also show up with that smoke.")
+                }
+
                 Section("Details") {
                     IconTextFieldRow(systemImage: "plus.circle", title: "Name", text: $name) {
                         Button("Look Up Cigar", systemImage: "magnifyingglass") {
                             // Snapshot the current name and photo; the sheet shouldn't read form state later.
-                            lookupRequest = LookupRequest(query: trimmedName, photo: photo)
+                            lookupRequest = LookupRequest(query: trimmedName, photo: photo ?? extraPhotos.first?.data)
                         }
                         .labelStyle(.iconOnly)
                         .buttonStyle(.borderless)
@@ -269,6 +284,7 @@ struct AddCigar: View {
             }
             cigar.storePlace = storedPlace
             applyNewFields(to: cigar)
+            cigar.savePhotos(extraPhotos, original: originalExtraPhotos, in: modelContext)
         } else {
             let cigar = CigarTemplate(
                 name: trimmedName,
@@ -287,6 +303,7 @@ struct AddCigar: View {
             cigar.hasBeenSmoked = !notSmokedYet
             applyNewFields(to: cigar)
             modelContext.insert(cigar)
+            cigar.savePhotos(extraPhotos, original: [], in: modelContext)
         }
     }
 
@@ -305,5 +322,5 @@ struct AddCigar: View {
 
 #Preview {
     AddCigar()
-        .modelContainer(for: [CigarTemplate.self, SmokeSession.self], inMemory: true)
+        .modelContainer(for: [CigarTemplate.self, SmokeSession.self, CigarPhoto.self], inMemory: true)
 }

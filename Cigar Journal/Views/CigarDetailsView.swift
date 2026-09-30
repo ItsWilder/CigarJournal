@@ -13,7 +13,7 @@ enum CigarDetailSheet: Identifiable {
     case editSmoke(SmokeEntry)
     case restock
     case storeMap(StorePlace)
-    case photo
+    case photo(AnyHashable)
 
     var id: String {
         switch self {
@@ -22,7 +22,7 @@ enum CigarDetailSheet: Identifiable {
         case .editSmoke(let smoke): "smoke-\(smoke.id)"
         case .restock: "restock"
         case .storeMap(let place): "map-\(place.id)"
-        case .photo: "photo"
+        case .photo(let photoID): "photo-\(photoID)"
         }
     }
 }
@@ -36,18 +36,16 @@ struct CigarDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showingPanel = true
+    @State private var currentPhotoIndex: Int?
     @State private var activeSheet: CigarDetailSheet?
     @State private var confirmingDelete = false
 
     var body: some View {
+        let gallery = cigar.gallery
+
         GeometryReader { proxy in
-            ZStack {
-                if cigar.photo != nil {
-                    CigarPhotoView(photo: cigar.photo, maxPointSize: 1200)
-                        .onTapGesture {
-                            activeSheet = .photo
-                        }
-                } else {
+            if gallery.isEmpty {
+                ZStack {
                     Color(.brown)
                         .onTapGesture {
                             activeSheet = .edit
@@ -61,9 +59,41 @@ struct CigarDetailView: View {
                         .allowsHitTesting(false)
                         .accessibilityLabel("Add photo")
                 }
+            } else {
+                // Swipe sideways through every photo of this cigar.
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 0) {
+                        ForEach(gallery.indices, id: \.self) { index in
+                            CigarPhotoView(photo: gallery[index].data, maxPointSize: 1200)
+                                .frame(width: proxy.size.width, height: proxy.size.height)
+                                .contentShape(.rect)
+                                .onTapGesture {
+                                    activeSheet = .photo(gallery[index].id)
+                                }
+                                .id(index)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $currentPhotoIndex)
+                .scrollIndicators(.hidden)
             }
         }
         .ignoresSafeArea()
+        .overlay(alignment: .top) {
+            if gallery.count > 1 {
+                let index = min(currentPhotoIndex ?? 0, gallery.count - 1)
+                Text("\(index + 1) of \(gallery.count)")
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .glassEffect(.regular, in: .capsule)
+                    .padding(.top, 8)
+                    .accessibilityLabel("Photo \(index + 1) of \(gallery.count)")
+            }
+        }
         .toolbar(.hidden, for: .tabBar)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -211,7 +241,7 @@ private struct CigarInfoPanel: View {
             case .editSmoke(let smoke): SmokeSheet(cigar: cigar, editing: smoke)
             case .restock: RestockSheet(cigar: cigar)
             case .storeMap(let place): StoresMapView(focus: place)
-            case .photo: FullScreenPhoto(photo: cigar.photo)
+            case .photo(let photoID): PhotoViewer(photos: cigar.gallery, startAt: photoID)
             }
         }
         .confirmationDialog("Delete \(cigar.name)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -302,33 +332,41 @@ private struct CigarInfoPanel: View {
                 Text("Smokes")
                     .font(.headline)
                 ForEach(smokes) { smoke in
-                    Button {
-                        activeSheet = .editSmoke(smoke)
-                    } label: {
-                        SmokeRow(smoke: smoke)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Edit this smoke")
+                    SmokeRow(
+                        smoke: smoke,
+                        photos: cigar.photos(for: smoke),
+                        onEdit: { activeSheet = .editSmoke(smoke) },
+                        onPhoto: { activeSheet = .photo($0) }
+                    )
                     if smoke.id != smokes.last?.id {
                         Divider()
                     }
                 }
             }
-        } else if let smoke = smokes.first, !smoke.notes.isEmpty {
-            Button {
-                activeSheet = .editSmoke(smoke)
-            } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Notes")
-                        .font(.headline)
-                    Text(smoke.notes)
-                        .multilineTextAlignment(.leading)
+        } else if let smoke = smokes.first, !smoke.notes.isEmpty || !cigar.photos(for: smoke).isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Button {
+                    activeSheet = .editSmoke(smoke)
+                } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Notes")
+                            .font(.headline)
+                        if !smoke.notes.isEmpty {
+                            Text(smoke.notes)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(.rect)
+                .buttonStyle(.plain)
+                .accessibilityHint("Edit notes")
+
+                let photos = cigar.photos(for: smoke)
+                if !photos.isEmpty {
+                    PhotoThumbnailRow(photos: photos) { activeSheet = .photo($0) }
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Edit notes")
         }
     }
 }
@@ -379,42 +417,133 @@ private struct DetailCell: View, Identifiable {
 
 private struct SmokeRow: View {
     let smoke: SmokeEntry
+    let photos: [CigarPhoto]
+    let onEdit: () -> Void
+    let onPhoto: (AnyHashable) -> Void
 
     var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(smoke.date, format: .dateTime.month().day().year())
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    StarRating(rating: smoke.rating)
-                        .font(.caption)
+        VStack(alignment: .leading, spacing: 8) {
+            Button(action: onEdit) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(smoke.date, format: .dateTime.month().day().year())
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            StarRating(rating: smoke.rating)
+                                .font(.caption)
+                        }
+                        if !smoke.notes.isEmpty {
+                            Text(smoke.notes)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 2)
                 }
-                if !smoke.notes.isEmpty {
-                    Text(smoke.notes)
-                        .multilineTextAlignment(.leading)
-                }
+                .contentShape(.rect)
             }
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .padding(.top, 2)
+            .buttonStyle(.plain)
+            .accessibilityHint("Edit this smoke")
+
+            if !photos.isEmpty {
+                PhotoThumbnailRow(photos: photos, onPhoto: onPhoto)
+            }
         }
-        .contentShape(.rect)
     }
 }
 
-// MARK: - Full screen photo
+/// Small thumbnails of a smoke's photos; tap one to open it full screen.
+private struct PhotoThumbnailRow: View {
+    let photos: [CigarPhoto]
+    let onPhoto: (AnyHashable) -> Void
 
-private struct FullScreenPhoto: View {
-    let photo: Data?
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(photos) { photo in
+                    Button {
+                        onPhoto(photo.persistentModelID)
+                    } label: {
+                        CigarPhotoView(photo: photo.data, maxPointSize: 56)
+                            .frame(width: 56, height: 56)
+                            .clipShape(.rect(cornerRadius: 8, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Photo")
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+}
+
+// MARK: - Full screen photos
+
+/// Full-screen photos you can swipe through, each with pinch and double-tap zoom.
+private struct PhotoViewer: View {
+    let photos: [GalleryPhoto]
 
     @Environment(\.dismiss) private var dismiss
+    @State private var currentIndex: Int?
+
+    init(photos: [GalleryPhoto], startAt photoID: AnyHashable) {
+        self.photos = photos
+        _currentIndex = State(initialValue: photos.firstIndex { $0.id == photoID } ?? 0)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
+                    ForEach(photos.indices, id: \.self) { index in
+                        ZoomablePhoto(data: photos[index].data)
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                            .id(index)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $currentIndex)
+            .scrollIndicators(.hidden)
+        }
+        .background(.black)
+        .ignoresSafeArea()
+        .overlay(alignment: .top) {
+            HStack {
+                if photos.count > 1 {
+                    let index = min(currentIndex ?? 0, photos.count - 1)
+                    Text("\(index + 1) of \(photos.count)")
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .glassEffect(.regular, in: .capsule)
+                }
+                Spacer()
+                Button("Close", systemImage: "xmark", role: .close) {
+                    dismiss()
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.glass)
+            }
+            .padding()
+        }
+        .presentationDetents([.large])
+    }
+}
+
+private struct ZoomablePhoto: View {
+    let data: Data
+
     @State private var zoom: CGFloat = 1
     @GestureState private var pinch: CGFloat = 1
 
     var body: some View {
-        CigarPhotoView(photo: photo, maxPointSize: 1800, contentMode: .fit, background: .black)
+        CigarPhotoView(photo: data, maxPointSize: 1800, contentMode: .fit, background: .black)
             .scaleEffect(zoom * pinch)
             .gesture(
                 MagnifyGesture()
@@ -424,22 +553,13 @@ private struct FullScreenPhoto: View {
             .onTapGesture(count: 2) {
                 withAnimation(.snappy) { zoom = zoom > 1 ? 1 : 2.5 }
             }
-            .ignoresSafeArea()
-            .overlay(alignment: .topTrailing) {
-                Button(role: .close) {
-                    dismiss()
-                }
-                .buttonStyle(.glass)
-                .padding()
-            }
-            .presentationDetents([.large])
     }
 }
 
 #Preview {
     do {
         let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-        let container = try ModelContainer(for: CigarTemplate.self, SmokeSession.self, configurations: config)
+        let container = try ModelContainer(for: CigarTemplate.self, SmokeSession.self, CigarPhoto.self, configurations: config)
         let cigar = CigarTemplate(name: "La Flor Dominicana 1994", type: "Toro", length: "6.00", gauge: "52", location: "Smoke on the Water", price: "11", strength: "Medium", rating: 4, notes: "A great cigar. Mild and easy going.", date: .now)
         cigar.wrapper = "Maduro"
         cigar.origin = "Dominican"

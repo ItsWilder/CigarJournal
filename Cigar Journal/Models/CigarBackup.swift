@@ -9,7 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct CigarBackup: Codable {
-    var version = 2
+    var version = 3
     var exportedAt: Date
     var cigars: [Entry]
 
@@ -39,6 +39,17 @@ struct CigarBackup: Codable {
         var humidorCount: Int?
         var hasBeenSmoked: Bool?
         var smokeSessions: [Smoke]?
+        // Added in 2.0 (backup v3): photos beyond the cover.
+        var extraPhotos: [Photo]?
+    }
+
+    struct Photo: Codable {
+        var data: Data
+        var dateAdded: Date
+        var sortOrder: Int
+        /// Index into `smokeSessions` when the photo belongs to a later smoke.
+        var smokeIndex: Int?
+        var isFromFirstSmoke: Bool
     }
 
     struct Smoke: Codable {
@@ -75,7 +86,18 @@ extension CigarBackup {
                 isFavorite: cigar.isFavorite,
                 humidorCount: cigar.humidorCount,
                 hasBeenSmoked: cigar.hasBeenSmoked,
-                smokeSessions: (cigar.smokeSessions ?? []).map { Smoke(date: $0.date, rating: $0.rating, notes: $0.notes) }
+                smokeSessions: (cigar.smokeSessions ?? []).map { Smoke(date: $0.date, rating: $0.rating, notes: $0.notes) },
+                extraPhotos: cigar.sortedExtraPhotos.compactMap { photo in
+                    photo.data.map {
+                        Photo(
+                            data: $0,
+                            dateAdded: photo.dateAdded,
+                            sortOrder: photo.sortOrder,
+                            smokeIndex: photo.smoke.flatMap { smoke in (cigar.smokeSessions ?? []).firstIndex(of: smoke) },
+                            isFromFirstSmoke: photo.isFromFirstSmoke
+                        )
+                    }
+                }
             )
         }
     }
@@ -135,10 +157,22 @@ extension CigarBackup {
             cigar.humidorCount = entry.humidorCount ?? 0
             cigar.hasBeenSmoked = entry.hasBeenSmoked ?? true
             context.insert(cigar)
+            var sessions: [SmokeSession] = []
             for smoke in entry.smokeSessions ?? [] {
                 let session = SmokeSession(date: smoke.date, rating: smoke.rating, notes: smoke.notes)
                 context.insert(session)
                 session.cigar = cigar
+                sessions.append(session)
+            }
+            for photo in entry.extraPhotos ?? [] {
+                let record = CigarPhoto(data: photo.data, sortOrder: photo.sortOrder)
+                context.insert(record)
+                record.dateAdded = photo.dateAdded
+                record.isFromFirstSmoke = photo.isFromFirstSmoke
+                record.cigar = cigar
+                if let index = photo.smokeIndex, sessions.indices.contains(index) {
+                    record.smoke = sessions[index]
+                }
             }
         }
     }

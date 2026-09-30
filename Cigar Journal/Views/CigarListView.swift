@@ -339,7 +339,7 @@ struct CigarRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CigarPhotoView(photo: cigar.photo, maxPointSize: 84)
+            CigarPhotoView(photo: cigar.coverPhoto, maxPointSize: 84)
                 .frame(width: 84, height: 84)
                 .clipShape(.rect(cornerRadius: 16, style: .continuous))
                 .overlay(alignment: .topTrailing) {
@@ -427,7 +427,7 @@ extension Bundle {
 #Preview {
     do {
         let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-        let container = try ModelContainer(for: CigarTemplate.self, SmokeSession.self, configurations: config)
+        let container = try ModelContainer(for: CigarTemplate.self, SmokeSession.self, CigarPhoto.self, configurations: config)
         container.mainContext.insert(CigarTemplate(name: "Casa Magna Colorado", type: "Robusto", length: "5.50", gauge: "52", location: "Local Shop", price: "9.87", strength: "Medium", rating: 5, notes: "Dark chocolate, nutmeg and wood.", date: .now))
 
         return CigarListScreen(shelf: .journal)

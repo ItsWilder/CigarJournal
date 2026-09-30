@@ -59,7 +59,7 @@ struct CigarPhotoPicker: View {
     }
 }
 
-private struct CameraImagePicker: UIViewControllerRepresentable {
+struct CameraImagePicker: UIViewControllerRepresentable {
     @Binding var selectedPhoto: Data?
     @Environment(\.dismiss) private var dismiss
 

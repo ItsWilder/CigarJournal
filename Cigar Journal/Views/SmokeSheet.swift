@@ -17,6 +17,8 @@ struct SmokeSheet: View {
     @State private var rating: Int
     @State private var notes: String
     @State private var confirmingDelete = false
+    @State private var photos: [PendingPhoto]
+    private let originalPhotos: [CigarPhoto]
 
     init(cigar: CigarTemplate, editing: SmokeEntry? = nil) {
         self.cigar = cigar
@@ -24,6 +26,11 @@ struct SmokeSheet: View {
         _date = State(initialValue: editing?.date ?? .now)
         _rating = State(initialValue: editing?.rating ?? 3)
         _notes = State(initialValue: editing?.notes ?? "")
+        let existing = editing.map { cigar.photos(for: $0) } ?? []
+        originalPhotos = existing
+        _photos = State(initialValue: existing.compactMap { record in
+            record.data.map { PendingPhoto(data: $0, record: record) }
+        })
     }
 
     private var title: String {
@@ -50,6 +57,10 @@ struct SmokeSheet: View {
                 Section("Notes") {
                     TextField("How did it smoke?", text: $notes, axis: .vertical)
                         .lineLimit(5...)
+                }
+
+                Section("Photos") {
+                    PhotoStripEditor(photos: $photos)
                 }
 
                 // The first smoke is the cigar itself; delete the cigar to remove it.
@@ -93,16 +104,19 @@ struct SmokeSheet: View {
     private func save() {
         switch editing {
         case nil:
-            cigar.recordSmoke(date: date, rating: rating, notes: notes, in: modelContext)
+            let session = cigar.recordSmoke(date: date, rating: rating, notes: notes, in: modelContext)
+            cigar.savePhotos(photos, original: [], session: session, firstSmoke: session == nil, in: modelContext)
         case let entry? where entry.session != nil:
             entry.session?.date = date
             entry.session?.rating = rating
             entry.session?.notes = notes
+            cigar.savePhotos(photos, original: originalPhotos, session: entry.session, in: modelContext)
         case .some:
             // The first smoke lives on the cigar itself.
             cigar.date = date
             cigar.rating = rating
             cigar.notes = notes
+            cigar.savePhotos(photos, original: originalPhotos, firstSmoke: true, in: modelContext)
         }
     }
 }
