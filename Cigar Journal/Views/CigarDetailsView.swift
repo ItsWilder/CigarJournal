@@ -161,8 +161,8 @@ struct CigarDetails: View {
     do {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: CigarTemplate.self, configurations: config)
-        let example1 = CigarTemplate(name: "A. Flores 1975 Gran Reserva Maduro", shape: "Robusto", length: "7", gauge: "40", location: "Cigar Club", price: "100", strength: "Medium", rating: 4, notes: "Surprisingly polished despite its rough appearance. The smoke is warm and nutty, with subtle layers of honeyed tea, orange peel, and just a touch of caramel sweetness. Definitely more refined than I expected—smooth and easygoing. Would be a great choice for a relaxing evening.", date: Date())
-        let example2 = CigarTemplate(name: "Montecristo No. 2", shape: "Torpedo", length: "6 1/8", gauge: "52", location: "Local Shop", price: "15", strength: "Full", rating: 5, notes: "Classic Cuban flavor with rich earth tones and a spicy finish.", date: Date())
+        let example1 = CigarTemplate(name: "A. Flores 1975 Gran Reserva Maduro", type: "Robusto", length: "7", gauge: "40", location: "Cigar Club", price: "100", strength: "Medium", rating: 4, notes: "Surprisingly polished despite its rough appearance. The smoke is warm and nutty, with subtle layers of honeyed tea, orange peel, and just a touch of caramel sweetness. Definitely more refined than I expected—smooth and easygoing. Would be a great choice for a relaxing evening.", date: Date())
+        let example2 = CigarTemplate(name: "Montecristo No. 2", type: "Torpedo", length: "6 1/8", gauge: "52", location: "Local Shop", price: "15", strength: "Full", rating: 5, notes: "Classic Cuban flavor with rich earth tones and a spicy finish.", date: Date())
         
         return CigarDetails(cigars: [example1, example2], selectedIndex: 0)
             .modelContainer(container)

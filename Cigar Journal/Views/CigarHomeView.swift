@@ -3,6 +3,7 @@
 
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 
 let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
@@ -21,9 +22,15 @@ enum CigarSortOption: String, CaseIterable, Identifiable {
 struct CigarsHome: View {
     @Environment(\.modelContext) var modelContext
     @Query(sort: \CigarTemplate.date, order: .reverse) var cigars: [CigarTemplate]
-    @AppStorage("hasSeededDemoCigars") private var hasSeededDemoCigars = false
+    @AppStorage("lastBackupDate") private var lastBackupTimestamp: Double = 0
     @State private var showAddCigar = false
     @State private var sortOption: CigarSortOption = .date
+    @State private var backupDocument: CigarBackupDocument?
+    @State private var backupFilename = ""
+    @State private var showingRestorePicker = false
+    @State private var pendingRestore: [CigarBackup.Entry]?
+    @State private var restoreFoundCount = 0
+    @State private var backupErrorMessage: String?
 
     
     var body: some View {
@@ -46,15 +53,77 @@ struct CigarsHome: View {
                 ToolbarItems(
                     showAddCigar: $showAddCigar,
                     hasCigars: !cigars.isEmpty,
-                    sortOption: $sortOption
+                    sortOption: $sortOption,
+                    lastBackupDate: lastBackupTimestamp > 0 ? Date(timeIntervalSince1970: lastBackupTimestamp) : nil,
+                    exportBackup: exportBackup,
+                    restoreBackup: { showingRestorePicker = true }
                 )
             }
             .sheet(isPresented: $showAddCigar) {
                 AddCigar()
             }
+            .fileExporter(
+                isPresented: Binding(get: { backupDocument != nil }, set: { if !$0 { backupDocument = nil } }),
+                document: backupDocument,
+                contentType: .json,
+                defaultFilename: backupFilename
+            ) { result in
+                switch result {
+                case .success:
+                    lastBackupTimestamp = Date.now.timeIntervalSince1970
+                case .failure(let error):
+                    backupErrorMessage = error.localizedDescription
+                }
+            }
+            .fileImporter(isPresented: $showingRestorePicker, allowedContentTypes: [.json]) { result in
+                prepareRestore(from: result)
+            }
+            .alert(
+                "Restore Backup",
+                isPresented: Binding(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } }),
+                presenting: pendingRestore
+            ) { entries in
+                if !entries.isEmpty {
+                    Button("Add \(entries.count) Cigars") {
+                        CigarBackup.insert(entries, into: modelContext)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { entries in
+                Text("Found \(restoreFoundCount) cigars, \(restoreFoundCount - entries.count) already in your journal. Restoring only adds missing cigars; nothing is changed or deleted.")
+            }
+            .alert(
+                "Backup Failed",
+                isPresented: Binding(get: { backupErrorMessage != nil }, set: { if !$0 { backupErrorMessage = nil } })
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(backupErrorMessage ?? "")
+            }
         }
-        .task {
-            seedDemoDataIfNeeded()
+    }
+
+    private func exportBackup() {
+        do {
+            let backup = CigarBackup(cigars: cigars)
+            backupFilename = backup.suggestedFilename
+            backupDocument = CigarBackupDocument(data: try backup.encoded())
+        } catch {
+            backupErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func prepareRestore(from result: Result<URL, Error>) {
+        do {
+            let url = try result.get()
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+
+            let backup = try CigarBackup(data: Data(contentsOf: url))
+            restoreFoundCount = backup.cigars.count
+            pendingRestore = backup.entriesMissing(from: cigars)
+        } catch {
+            backupErrorMessage = error.localizedDescription
         }
     }
     
@@ -91,21 +160,6 @@ struct CigarsHome: View {
             return 1
         default:
             return 0
-        }
-    }
-    
-    private func seedDemoDataIfNeeded() {
-        guard !hasSeededDemoCigars, cigars.isEmpty else { return }
-
-        for cigar in CigarDemoData.templates() {
-            modelContext.insert(cigar)
-        }
-
-        do {
-            try modelContext.save()
-            hasSeededDemoCigars = true
-        } catch {
-            print("Demo data seed failed: \(error)")
         }
     }
 }
@@ -238,6 +292,9 @@ struct ToolbarItems: ToolbarContent {
     @Binding var showAddCigar: Bool
     let hasCigars: Bool
     @Binding var sortOption: CigarSortOption
+    let lastBackupDate: Date?
+    let exportBackup: () -> Void
+    let restoreBackup: () -> Void
 
     private var addButton: some View {
         Button("Add Cigar", systemImage: "plus") {
@@ -263,6 +320,12 @@ struct ToolbarItems: ToolbarContent {
                         .foregroundStyle(.secondary)
                 }
             }
+            Section {
+                Button("Export Backup…", systemImage: "square.and.arrow.up", action: exportBackup)
+                    .disabled(!hasCigars)
+                Button("Restore Backup…", systemImage: "arrow.counterclockwise", action: restoreBackup)
+                Text(lastBackupDate.map { "Last backup: \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "No backup yet")
+            }
             Divider()
             Text("v\(version) (\(build))")
         } label: {
@@ -285,13 +348,9 @@ struct ToolbarItems: ToolbarContent {
 
 #Preview {
     do {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: CigarTemplate.self, configurations: config)
-        let context = container.mainContext
-
-        for cigar in CigarDemoData.templates() {
-            context.insert(cigar)
-        }
+        container.mainContext.insert(CigarTemplate(name: "Casa Magna Colorado", type: "Robusto", length: "5.50", gauge: "52", location: "Local Shop", price: "9.87", strength: "Medium", rating: 5, notes: "Dark chocolate, nutmeg and wood.", date: .now))
 
         return CigarsHome()
             .modelContainer(container)

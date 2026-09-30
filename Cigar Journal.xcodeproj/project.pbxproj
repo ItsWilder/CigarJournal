@@ -9,21 +9,19 @@
 /* Begin PBXBuildFile section */
 		D812F1352C90E1830040CCED /* CigarsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1342C90E1830040CCED /* CigarsApp.swift */; };
 		D812F1392C90E1840040CCED /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D812F1382C90E1840040CCED /* Assets.xcassets */; };
-		D812F1432C90E1B60040CCED /* Cigar.swift in Sources */ = {isa = PBXBuildFile; fileRef = D812F1422C90E1B60040CCED /* Cigar.swift */; };
-		D8920EFA2CA5F99300E15294 /* StarRating.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8920EF92CA5F99300E15294 /* StarRating.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		D812F1312C90E1830040CCED /* Cigar Journal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cigar Journal.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D812F1342C90E1830040CCED /* CigarsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CigarsApp.swift; sourceTree = "<group>"; };
 		D812F1382C90E1840040CCED /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		D812F1422C90E1B60040CCED /* Cigar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cigar.swift; sourceTree = "<group>"; };
 		D82C60012CB5CC0500292327 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		D8920EF92CA5F99300E15294 /* StarRating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRating.swift; sourceTree = "<group>"; };
 		D8CC10012DF6007100A1CCDD /* Cigar Journal.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Cigar Journal.entitlements"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		D8F30B5E2C972AA300A279FA /* Models */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Models; sourceTree = "<group>"; };
+		D8A1C0DE2E90000100ABCDEF /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
 		D8EE581E2DE3986600A8C3EC /* Views */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Views; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -58,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				D8F30B5E2C972AA300A279FA /* Models */,
+				D8A1C0DE2E90000100ABCDEF /* Services */,
 				D8EE581E2DE3986600A8C3EC /* Views */,
 				D82C60012CB5CC0500292327 /* Info.plist */,
 				D8CC10012DF6007100A1CCDD /* Cigar Journal.entitlements */,
@@ -65,15 +64,6 @@
 				D812F1382C90E1840040CCED /* Assets.xcassets */,
 			);
 			path = "Cigar Journal";
-			sourceTree = "<group>";
-		};
-		D8F30B5E2C972AA300A279FA /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				D812F1422C90E1B60040CCED /* Cigar.swift */,
-				D8920EF92CA5F99300E15294 /* StarRating.swift */,
-			);
-			path = Models;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -92,6 +82,8 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				D8F30B5E2C972AA300A279FA /* Models */,
+				D8A1C0DE2E90000100ABCDEF /* Services */,
 				D8EE581E2DE3986600A8C3EC /* Views */,
 			);
 			name = "Cigar Journal";
@@ -156,9 +148,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D8920EFA2CA5F99300E15294 /* StarRating.swift in Sources */,
 				D812F1352C90E1830040CCED /* CigarsApp.swift in Sources */,
-				D812F1432C90E1B60040CCED /* Cigar.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
