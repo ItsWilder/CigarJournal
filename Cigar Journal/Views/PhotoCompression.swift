@@ -1,6 +1,7 @@
 // PhotoCompression
 // Photos are resized and JPEG-compressed once, when picked, before they're stored.
 
+import ImageIO
 import UIKit
 
 nonisolated enum PhotoCompression {
@@ -12,6 +13,18 @@ nonisolated enum PhotoCompression {
     static func compressedData(from data: Data) async -> Data {
         guard let image = UIImage(data: data) else { return data }
         return compressedData(from: image) ?? data
+    }
+
+    /// A smaller JPEG for sending to the lookup service (faster upload, fewer tokens).
+    static func downsampledJPEG(from data: Data, maxPixelSize: CGFloat, quality: CGFloat = 0.8) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+        ] as CFDictionary
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else { return nil }
+        return UIImage(cgImage: image).jpegData(compressionQuality: quality)
     }
 
     static func compressedData(from image: UIImage) -> Data? {

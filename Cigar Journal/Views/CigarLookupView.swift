@@ -1,7 +1,8 @@
 // CigarLookupView
 // Find a cigar by whatever part of its name you remember, then tap the right one to
 // fill in the form. Matches from your own journal show instantly; a web search
-// returns real lines and sizes to choose from.
+// returns real lines and sizes to choose from. If the cigar has a photo, it's sent
+// along to help identify the line and pick the size.
 
 import SwiftData
 import SwiftUI
@@ -17,6 +18,7 @@ struct CigarLookupSelection {
 }
 
 struct CigarLookupView: View {
+    let photo: Data?
     let onSelect: (CigarLookupSelection) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -25,6 +27,7 @@ struct CigarLookupView: View {
     @State private var query: String
     @State private var webState: WebState = .idle
     @State private var showingSettings = false
+    @State private var usePhoto: Bool
     @FocusState private var isQueryFocused: Bool
 
     private enum WebState {
@@ -34,9 +37,11 @@ struct CigarLookupView: View {
         case failed(String)
     }
 
-    init(query: String, onSelect: @escaping (CigarLookupSelection) -> Void) {
+    init(query: String, photo: Data? = nil, onSelect: @escaping (CigarLookupSelection) -> Void) {
+        self.photo = photo
         self.onSelect = onSelect
         _query = State(initialValue: query)
+        _usePhoto = State(initialValue: photo != nil)
     }
 
     var body: some View {
@@ -50,10 +55,30 @@ struct CigarLookupView: View {
                             .onSubmit(searchWeb)
                         Button("Search", action: searchWeb)
                             .buttonStyle(.borderedProminent)
-                            .disabled(trimmedQuery.isEmpty || isLoading)
+                            .disabled(!canSearch)
+                    }
+
+                    if let photo {
+                        Toggle(isOn: $usePhoto) {
+                            HStack(spacing: 12) {
+                                CigarPhotoView(photo: photo, maxPointSize: 44)
+                                    .frame(width: 44, height: 44)
+                                    .clipShape(.rect(cornerRadius: 8))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Use Photo")
+                                    Text("Helps pick the line and size")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                     }
                 } footer: {
-                    Text("Try a brand like \"Acid\" or a full name like \"H. Upmann Vintage Cameroon\".")
+                    if usePhoto && photo != nil {
+                        Text("Type what you know, or leave it blank to search from the photo alone. The photo is only sent when you tap Search.")
+                    } else {
+                        Text("Try a brand like \"Acid\" or a full name like \"H. Upmann Vintage Cameroon\".")
+                    }
                 }
 
                 if !journalMatches.isEmpty {
@@ -146,7 +171,8 @@ struct CigarLookupView: View {
                                     detail: [candidate.shape, candidate.sizeText, candidate.strength]
                                         .compactMap { $0 }
                                         .joined(separator: "  •  "),
-                                    source: candidate.sourceURL?.host()
+                                    source: candidate.sourceURL?.host(),
+                                    matchesPhoto: candidate.matchesPhoto
                                 )
                             }
                         }
@@ -168,6 +194,11 @@ struct CigarLookupView: View {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// A name, or the photo on its own, is enough to search.
+    private var canSearch: Bool {
+        !isLoading && (!trimmedQuery.isEmpty || (usePhoto && photo != nil))
+    }
+
     private var isLoading: Bool {
         if case .loading = webState { true } else { false }
     }
@@ -184,14 +215,15 @@ struct CigarLookupView: View {
     }
 
     private func searchWeb() {
-        guard !trimmedQuery.isEmpty, !isLoading else { return }
+        guard canSearch else { return }
         isQueryFocused = false
         webState = .loading
 
         let searchText = trimmedQuery
+        let searchPhoto = usePhoto ? photo : nil
         Task {
             do {
-                webState = .loaded(try await CigarLookupService().lookUp(searchText))
+                webState = .loaded(try await CigarLookupService().lookUp(searchText, photo: searchPhoto))
             } catch {
                 webState = .failed(error.localizedDescription)
             }
@@ -229,12 +261,21 @@ private struct ResultRow: View {
     let title: String
     let detail: String
     var source: String?
+    var matchesPhoto = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.primary)
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer()
+                if matchesPhoto {
+                    Label("Fits photo", systemImage: "camera.viewfinder")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.accent)
+                }
+            }
             if !detail.isEmpty {
                 Text(detail)
                     .font(.callout)

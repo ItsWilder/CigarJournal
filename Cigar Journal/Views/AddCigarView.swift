@@ -24,7 +24,7 @@ struct AddCigar: View {
     @State private var storePlace: StorePlace?
     @State private var showingStorePicker = false
     @State private var expandedWheel: String?
-    @State private var showingLookup = false
+    @State private var lookupRequest: LookupRequest?
     @State private var lookupSource: URL?
 
     init(editCigar: CigarTemplate? = nil) {
@@ -55,7 +55,8 @@ struct AddCigar: View {
                 Section("Details") {
                     IconTextFieldRow(systemImage: "plus.circle", title: "Name", text: $name) {
                         Button("Look Up Cigar", systemImage: "magnifyingglass") {
-                            showingLookup = true
+                            // Snapshot the current name and photo; the sheet shouldn't read form state later.
+                            lookupRequest = LookupRequest(query: trimmedName, photo: photo)
                         }
                         .labelStyle(.iconOnly)
                         .buttonStyle(.borderless)
@@ -132,8 +133,8 @@ struct AddCigar: View {
                     location = place.name
                 }
             }
-            .sheet(isPresented: $showingLookup) {
-                CigarLookupView(query: trimmedName, onSelect: apply)
+            .sheet(item: $lookupRequest) { request in
+                CigarLookupView(query: request.query, photo: request.photo, onSelect: apply)
             }
             .navigationTitle(editCigar == nil ? "Add Cigar" : "Edit Cigar")
             .navigationBarTitleDisplayMode(.inline)
@@ -152,6 +153,12 @@ struct AddCigar: View {
                 }
             }
         }
+    }
+
+    private struct LookupRequest: Identifiable {
+        let id = UUID()
+        let query: String
+        let photo: Data?
     }
 
     private var trimmedName: String {

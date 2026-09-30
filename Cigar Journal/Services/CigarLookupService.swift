@@ -3,6 +3,8 @@
 //
 // A brand name alone ("Acid", "H. Upmann") is ambiguous, so the service never picks
 // one cigar: it returns a short list of real lines and sizes and the user chooses.
+// An optional photo helps pick the line (band text, colors) and the size: sizes
+// always come from the web, and the photo is only used to rank them.
 
 import Foundation
 
@@ -18,6 +20,8 @@ struct CigarLookupCandidate: Identifiable, Hashable, Sendable {
     let shape: String?
     let strength: String?
     let sourceURL: URL?
+    /// Whether this size looks consistent with the cigar in the photo.
+    let matchesPhoto: Bool
 
     var sizeText: String? {
         switch (lengthInches, ringGauge) {
@@ -60,11 +64,24 @@ nonisolated struct CigarLookupService {
     private let model = "claude-opus-5-5"
     private let maxContinuations = 3
 
-    func lookUp(_ query: String) async throws -> CigarLookupResult {
+    /// - Parameters:
+    ///   - query: Whatever part of the name the user knows. May be empty when a photo is sent.
+    ///   - photo: The cigar's photo, to help identify the line and pick the size.
+    func lookUp(_ query: String, photo: Data? = nil) async throws -> CigarLookupResult {
         guard let apiKey = KeychainStore.anthropicAPIKey else { throw CigarLookupError.missingAPIKey }
 
+        var content: [[String: Any]] = []
+        if let photo, let jpeg = PhotoCompression.downsampledJPEG(from: photo, maxPixelSize: 1024) {
+            content.append([
+                "type": "image",
+                "source": ["type": "base64", "media_type": "image/jpeg", "data": jpeg.base64EncodedString()]
+            ])
+        }
+        let name = query.isEmpty ? "(not given; identify it from the photo)" : query
+        content.append(["type": "text", "text": "Cigar: \(name)"])
+
         var messages: [[String: Any]] = [
-            ["role": "user", "content": "Cigar: \(query)"]
+            ["role": "user", "content": content]
         ]
 
         // Web search runs on Anthropic's servers; a long search can pause the turn,
@@ -146,6 +163,19 @@ nonisolated struct CigarLookupService {
         isn't stated. Never estimate.
         - Map strength to Mild, Medium or Strong (mild-medium is Medium; medium-full and full are Strong).
         - If nothing matches, call report_candidates with an empty list and say why in note.
+
+        The user may attach a photo of the cigar they smoked:
+        - Read the band (brand, line and any secondary band text) and note the band colors \
+        and wrapper shade; use them to narrow down the line, even when the typed name is vague.
+        - Use the photo to judge which of the line's real sizes it is. You can't measure \
+        inches from a photo, but you can compare proportions: length against thickness, the \
+        band's width against the cigar, and the cigar against the hand holding it (an adult \
+        finger is roughly 0.7 inches wide). A short, thick cigar is a robusto or gordo; a long, \
+        thin one is a lonsdale or lancero.
+        - Put the sizes that fit the photo first and set matchesPhoto to true for them; set it \
+        to false for sizes the photo rules out, and for every candidate when there's no photo.
+        - Sizes still come only from the pages you found. Never report a size just because the \
+        photo suggests it.
         """
 
     private static var reportCandidatesTool: [String: Any] {
@@ -167,7 +197,7 @@ nonisolated struct CigarLookupService {
                         "items": [
                             "type": "object",
                             "additionalProperties": false,
-                            "required": ["name", "line", "vitola", "lengthInches", "ringGauge", "shape", "strength", "sourceURL"],
+                            "required": ["name", "line", "vitola", "lengthInches", "ringGauge", "shape", "strength", "sourceURL", "matchesPhoto"],
                             "properties": [
                                 "name": ["type": "string", "description": "Full name as commonly written, e.g. \"Acid Kuba Kuba\" or \"H. Upmann Vintage Cameroon Robusto\"."],
                                 "line": ["type": "string", "description": "Brand and line, used for grouping, e.g. \"Acid Classic\"."],
@@ -179,7 +209,8 @@ nonisolated struct CigarLookupService {
                                     "description": "The closest standard shape for this size."
                                 ],
                                 "strength": ["anyOf": [["type": "string", "enum": ["Mild", "Medium", "Strong"]], ["type": "null"]]],
-                                "sourceURL": ["type": "string", "description": "The page these details came from."]
+                                "sourceURL": ["type": "string", "description": "The page these details came from."],
+                                "matchesPhoto": ["type": "boolean", "description": "True when this size looks consistent with the cigar in the photo."]
                             ]
                         ]
                     ]
@@ -204,7 +235,8 @@ nonisolated struct CigarLookupService {
                 ringGauge: (raw["ringGauge"] as? NSNumber)?.intValue,
                 shape: raw["shape"] as? String,
                 strength: raw["strength"] as? String,
-                sourceURL: (raw["sourceURL"] as? String).flatMap(URL.init(string:))
+                sourceURL: (raw["sourceURL"] as? String).flatMap(URL.init(string:)),
+                matchesPhoto: raw["matchesPhoto"] as? Bool ?? false
             )
         }
         return CigarLookupResult(candidates: candidates, note: input["note"] as? String ?? "")
