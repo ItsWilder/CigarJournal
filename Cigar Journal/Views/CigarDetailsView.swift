@@ -19,7 +19,6 @@ struct CigarDetails: View {
     @State private var isShowingDeleteConfirmation = false
     @State private var isShowingFullImage = false
 
-    private let maxVisibleDots = 5
 
     init(initialCigar: CigarTemplate, sortOption: CigarSortOption, searchText: String, zoomNamespace: Namespace.ID) {
         self.sortOption = sortOption
@@ -33,24 +32,25 @@ struct CigarDetails: View {
         let cigars = sortOption.visibleCigars(allCigars, matching: searchText)
         let selectedCigar = cigars.first { $0.persistentModelID == selectedID }
 
-        TabView(selection: $selectedID) {
-            ForEach(cigars) { cigar in
-                CigarDetailPage(cigar: cigar) {
-                    isShowingFullImage = true
+        // Swipe sideways between cigars: a horizontal scroll that snaps one page at a time.
+        // (A paged TabView clips each page above the home indicator, which cut off notes.)
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(cigars) { cigar in
+                    CigarDetailPage(cigar: cigar) {
+                        isShowingFullImage = true
+                    }
+                    .containerRelativeFrame(.horizontal)
+                    .id(cigar.persistentModelID)
                 }
-                .tag(Optional(cigar.persistentModelID))
             }
+            .scrollTargetLayout()
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        // Pages run to the bottom edge so text scrolls behind the home indicator too.
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: $selectedID)
+        .scrollIndicators(.hidden)
         .ignoresSafeArea(.container, edges: .bottom)
         .navigationTransition(.zoom(sourceID: initialID, in: zoomNamespace))
-        // An overlay, not a safe-area inset, so the page scrolls underneath the glass dots.
-        .overlay(alignment: .bottom) {
-            if cigars.count > 1 {
-                pageDots(for: cigars)
-            }
-        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Edit") {
@@ -107,44 +107,6 @@ struct CigarDetails: View {
             selectedID = remaining[min(index, remaining.count - 1)].persistentModelID
         }
         modelContext.delete(cigar)
-    }
-
-    private func pageDots(for cigars: [CigarTemplate]) -> some View {
-        let selectedIndex = cigars.firstIndex { $0.persistentModelID == selectedID } ?? 0
-        let visible = visibleDotIndices(count: cigars.count, selectedIndex: selectedIndex)
-
-        return HStack(spacing: 8) {
-            if let first = visible.first, first > 0 {
-                edgeDot
-            }
-            ForEach(visible, id: \.self) { index in
-                let isSelected = index == selectedIndex
-                Circle()
-                    .fill(isSelected ? Color.primary : Color.secondary.opacity(0.35))
-                    .frame(width: isSelected ? 9 : 7, height: isSelected ? 9 : 7)
-            }
-            if let last = visible.last, last < cigars.count - 1 {
-                edgeDot
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .capsule)
-        .padding(.bottom, 8)
-        .accessibilityElement()
-        .accessibilityLabel("Cigar \(selectedIndex + 1) of \(cigars.count)")
-    }
-
-    private var edgeDot: some View {
-        Circle()
-            .fill(Color.secondary.opacity(0.25))
-            .frame(width: 5, height: 5)
-    }
-
-    private func visibleDotIndices(count: Int, selectedIndex: Int) -> [Int] {
-        guard count > maxVisibleDots else { return Array(0..<count) }
-        let start = min(max(0, selectedIndex - maxVisibleDots / 2), count - maxVisibleDots)
-        return Array(start..<(start + maxVisibleDots))
     }
 }
 
@@ -212,8 +174,10 @@ private struct CigarDetailPage: View {
                 .padding()
             }
         }
-        // Leave room so the last lines can scroll up past the floating page dots.
-        .contentMargins(.bottom, 72, for: .scrollContent)
+        // Draw all the way to the bottom edge; the margin keeps the last line clear of
+        // the home indicator once you've scrolled to the end.
+        .ignoresSafeArea(.container, edges: .bottom)
+        .contentMargins(.bottom, 44, for: .scrollContent)
         .sheet(item: $mapFocus) { place in
             StoresMapView(focus: place)
         }
