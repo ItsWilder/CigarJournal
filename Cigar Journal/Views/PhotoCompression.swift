@@ -1,13 +1,24 @@
+// PhotoCompression
+// Photos are resized and JPEG-compressed once, when picked, before they're stored.
+
 import UIKit
 
-enum PhotoCompression {
-    static func compressedData(from data: Data?, maxDimension: CGFloat = 1800, quality: CGFloat = 0.75) -> Data? {
-        guard let data, let image = UIImage(data: data) else { return data }
-        let resized = resizedImage(image, maxDimension: maxDimension)
-        return resized.jpegData(compressionQuality: quality) ?? data
+nonisolated enum PhotoCompression {
+    static let maxDimension: CGFloat = 1800
+    static let quality: CGFloat = 0.75
+
+    /// Compresses picked image data off the main thread.
+    @concurrent
+    static func compressedData(from data: Data) async -> Data {
+        guard let image = UIImage(data: data) else { return data }
+        return compressedData(from: image) ?? data
     }
 
-    private static func resizedImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+    static func compressedData(from image: UIImage) -> Data? {
+        resizedImage(image).jpegData(compressionQuality: quality)
+    }
+
+    private static func resizedImage(_ image: UIImage) -> UIImage {
         let size = image.size
         let longestSide = max(size.width, size.height)
         guard longestSide > maxDimension else { return image }

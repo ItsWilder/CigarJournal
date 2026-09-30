@@ -1,13 +1,8 @@
 // CigarsHome
 
-
-import SwiftUI
 import SwiftData
+import SwiftUI
 import UniformTypeIdentifiers
-
-
-let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
 
 enum CigarSortOption: String, CaseIterable, Identifiable {
     case alphabetical = "Alphabetical"
@@ -17,14 +12,46 @@ enum CigarSortOption: String, CaseIterable, Identifiable {
     case rating = "Rating"
 
     var id: String { rawValue }
+
+    /// Filters by name, store or notes, then sorts. Shared by the list and the details pager
+    /// so swiping through details follows the same order you see in the list.
+    func visibleCigars(_ cigars: [CigarTemplate], matching searchText: String) -> [CigarTemplate] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        let filtered = query.isEmpty ? cigars : cigars.filter {
+            $0.name.localizedStandardContains(query)
+                || $0.location.localizedStandardContains(query)
+                || $0.notes.localizedStandardContains(query)
+        }
+
+        switch self {
+        case .alphabetical:
+            return filtered.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        case .date:
+            return filtered.sorted { $0.date > $1.date }
+        case .price:
+            return filtered.sorted { ($0.priceValue ?? 0) > ($1.priceValue ?? 0) }
+        case .strength:
+            return filtered.sorted { $0.strengthRank > $1.strengthRank }
+        case .rating:
+            return filtered.sorted { $0.rating > $1.rating }
+        }
+    }
 }
 
 struct CigarsHome: View {
-    @Environment(\.modelContext) var modelContext
-    @Query(sort: \CigarTemplate.date, order: .reverse) var cigars: [CigarTemplate]
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \CigarTemplate.date, order: .reverse) private var cigars: [CigarTemplate]
+
+    @AppStorage("sortOption") private var sortOption: CigarSortOption = .date
     @AppStorage("lastBackupDate") private var lastBackupTimestamp: Double = 0
+
+    @State private var searchText = ""
     @State private var showAddCigar = false
-    @State private var sortOption: CigarSortOption = .date
+    @State private var editingCigar: CigarTemplate?
+    @State private var cigarPendingDelete: CigarTemplate?
+    @Namespace private var zoomNamespace
+
+    // Backup
     @State private var backupDocument: CigarBackupDocument?
     @State private var backupFilename = ""
     @State private var showingRestorePicker = false
@@ -32,38 +59,84 @@ struct CigarsHome: View {
     @State private var restoreFoundCount = 0
     @State private var backupErrorMessage: String?
 
-    
     var body: some View {
+        let visibleCigars = sortOption.visibleCigars(cigars, matching: searchText)
+
         NavigationStack {
             Group {
                 if cigars.isEmpty {
-                    WelcomeView()
-                        .padding(.top, -100)
+                    ContentUnavailableView {
+                        Label("No Cigars Yet", systemImage: "list.bullet")
+                    } description: {
+                        Text("Tap + to add your first cigar.")
+                    }
                 } else {
-                    CigarListView(cigars: sortedCigars, deleteCigar: deleteCigar)
+                    List(visibleCigars) { cigar in
+                        NavigationLink(value: cigar) {
+                            CigarRowView(cigar: cigar, zoomNamespace: zoomNamespace)
+                        }
+                        .swipeActions {
+                            Button("Delete", systemImage: "trash", role: .destructive) {
+                                cigarPendingDelete = cigar
+                            }
+                            Button("Edit", systemImage: "pencil") {
+                                editingCigar = cigar
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                    .overlay {
+                        if visibleCigars.isEmpty {
+                            ContentUnavailableView.search(text: searchText)
+                        }
+                    }
                 }
             }
             .navigationTitle("Cigar Journal")
+            .searchable(text: $searchText, prompt: "Name, store or notes")
             .navigationDestination(for: CigarTemplate.self) { cigar in
-                if let index = sortedCigars.firstIndex(of: cigar) {
-                    CigarDetails(cigars: sortedCigars, selectedIndex: index)
-                }
+                CigarDetails(
+                    initialCigar: cigar,
+                    sortOption: sortOption,
+                    searchText: searchText,
+                    zoomNamespace: zoomNamespace
+                )
             }
             .toolbar {
-                ToolbarItems(
-                    showAddCigar: $showAddCigar,
-                    hasCigars: !cigars.isEmpty,
-                    sortOption: $sortOption,
-                    lastBackupDate: lastBackupTimestamp > 0 ? Date(timeIntervalSince1970: lastBackupTimestamp) : nil,
-                    exportBackup: exportBackup,
-                    restoreBackup: { showingRestorePicker = true }
-                )
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Add Cigar", systemImage: "plus") {
+                        showAddCigar = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.accent)
+                }
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                ToolbarItem(placement: .topBarTrailing) {
+                    overflowMenu
+                }
             }
             .sheet(isPresented: $showAddCigar) {
                 AddCigar()
             }
+            .sheet(item: $editingCigar) { cigar in
+                AddCigar(editCigar: cigar)
+            }
+            .confirmationDialog(
+                "Delete \(cigarPendingDelete?.name ?? "Cigar")?",
+                isPresented: isPresented($cigarPendingDelete),
+                titleVisibility: .visible,
+                presenting: cigarPendingDelete
+            ) { cigar in
+                Button("Delete", role: .destructive) {
+                    withAnimation {
+                        modelContext.delete(cigar)
+                    }
+                }
+            } message: { _ in
+                Text("This also removes it from iCloud on all your devices.")
+            }
             .fileExporter(
-                isPresented: Binding(get: { backupDocument != nil }, set: { if !$0 { backupDocument = nil } }),
+                isPresented: isPresented($backupDocument),
                 document: backupDocument,
                 contentType: .json,
                 defaultFilename: backupFilename
@@ -78,11 +151,7 @@ struct CigarsHome: View {
             .fileImporter(isPresented: $showingRestorePicker, allowedContentTypes: [.json]) { result in
                 prepareRestore(from: result)
             }
-            .alert(
-                "Restore Backup",
-                isPresented: Binding(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } }),
-                presenting: pendingRestore
-            ) { entries in
+            .alert("Restore Backup", isPresented: isPresented($pendingRestore), presenting: pendingRestore) { entries in
                 if !entries.isEmpty {
                     Button("Add \(entries.count) Cigars") {
                         CigarBackup.insert(entries, into: modelContext)
@@ -92,15 +161,45 @@ struct CigarsHome: View {
             } message: { entries in
                 Text("Found \(restoreFoundCount) cigars, \(restoreFoundCount - entries.count) already in your journal. Restoring only adds missing cigars; nothing is changed or deleted.")
             }
-            .alert(
-                "Backup Failed",
-                isPresented: Binding(get: { backupErrorMessage != nil }, set: { if !$0 { backupErrorMessage = nil } })
-            ) {
+            .alert("Backup Failed", isPresented: isPresented($backupErrorMessage), presenting: backupErrorMessage) { _ in
                 Button("OK", role: .cancel) {}
-            } message: {
-                Text(backupErrorMessage ?? "")
+            } message: { message in
+                Text(message)
             }
         }
+    }
+
+    private var overflowMenu: some View {
+        Menu("Options", systemImage: "ellipsis") {
+            Picker(selection: $sortOption) {
+                ForEach(CigarSortOption.allCases) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            } label: {
+                Label("Sort By", systemImage: "arrow.up.arrow.down")
+                Text(sortOption.rawValue)
+            }
+            .pickerStyle(.menu)
+
+            Section {
+                Button("Export Backup…", systemImage: "square.and.arrow.up", action: exportBackup)
+                    .disabled(cigars.isEmpty)
+                Button("Restore Backup…", systemImage: "arrow.counterclockwise") {
+                    showingRestorePicker = true
+                }
+                Text(lastBackupText)
+            }
+
+            Section {
+                Text("v\(Bundle.main.shortVersion) (\(Bundle.main.buildNumber))")
+            }
+        }
+    }
+
+    private var lastBackupText: String {
+        guard lastBackupTimestamp > 0 else { return "No backup yet" }
+        let date = Date(timeIntervalSince1970: lastBackupTimestamp)
+        return "Last backup: \(date.formatted(date: .abbreviated, time: .omitted))"
     }
 
     private func exportBackup() {
@@ -126,224 +225,51 @@ struct CigarsHome: View {
             backupErrorMessage = error.localizedDescription
         }
     }
-    
-    private func deleteCigar(at offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(sortedCigars[index])
-            }
-        }
-    }
 
-    private var sortedCigars: [CigarTemplate] {
-        switch sortOption {
-        case .alphabetical:
-            return cigars.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        case .date:
-            return cigars.sorted { $0.date > $1.date }
-        case .price:
-            return cigars.sorted { (Double($0.price) ?? 0) > (Double($1.price) ?? 0) }
-        case .strength:
-            return cigars.sorted { strengthRank($0.strength) > strengthRank($1.strength) }
-        case .rating:
-            return cigars.sorted { $0.rating > $1.rating }
-        }
-    }
-
-    private func strengthRank(_ strength: String) -> Int {
-        switch strength.lowercased() {
-        case "strong":
-            return 3
-        case "medium":
-            return 2
-        case "mild":
-            return 1
-        default:
-            return 0
-        }
+    /// A Bool binding that's true while `value` is non-nil, and clears it when dismissed.
+    private func isPresented<Value>(_ value: Binding<Value?>) -> Binding<Bool> {
+        Binding(
+            get: { value.wrappedValue != nil },
+            set: { if !$0 { value.wrappedValue = nil } }
+        )
     }
 }
 
-// Welcome View
-struct WelcomeView: View {
-    @State private var animate = false
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            
-            // Icon and Welcome
-            Image(systemName: "list.bullet")
-                .font(.system(size: 60))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(.brown, Color("AccentColor"))
-                .symbolEffect(.bounce, value: animate)
-                .onTapGesture { animate.toggle() }
-            
-            Text("Welcome!")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .foregroundColor(.accentColor)
-            
-            Text("Tap the '+' button in the top right corner to add your first cigar.")
-                .padding(.top, 1)
-                .padding(.horizontal, 20)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .font(.footnote)
+// MARK: - Row
 
-            .padding(.horizontal, 60)
-            .padding(.top, 260)
-        }
-    }
-}
-
-// Cigar List View
-struct CigarListView: View {
-    let cigars: [CigarTemplate]
-    let deleteCigar: (IndexSet) -> Void
-    
-    var body: some View {
-        List {
-            ForEach(cigars) { cigar in
-                CigarRowView(cigar: cigar)
-                    .listRowBackground(Color.clear)
-            }
-            .onDelete(perform: deleteCigar)
-        }
-        .listStyle(PlainListStyle())
-    }
-}
-
-// Cigar Row View
 struct CigarRowView: View {
     let cigar: CigarTemplate
-
-    private var priceText: String {
-        cigar.price == "~" ? "~" : "$\(cigar.price)"
-    }
+    let zoomNamespace: Namespace.ID
 
     private var metadataLine: String {
-        "\(cigar.type)  •  \(cigar.strength)  •  \(priceText)"
+        [cigar.type, cigar.strength, cigar.displayPrice].compactMap(\.self).joined(separator: "  •  ")
     }
-    
+
     var body: some View {
-        NavigationLink(value: cigar) {
-            HStack {
-                CigarImageView(photo: cigar.photo)
-                    .padding(.trailing, 1)
-                
-                VStack(alignment: .leading) {
-                    Text(cigar.name)
-                        .font(.headline)
+        HStack(spacing: 12) {
+            CigarPhotoView(photo: cigar.photo, maxPointSize: 84)
+                .frame(width: 84, height: 84)
+                .clipShape(.rect(cornerRadius: 16, style: .continuous))
+                .matchedTransitionSource(id: cigar.persistentModelID, in: zoomNamespace)
 
-                    Text(metadataLine)
-                        .font(.callout)
-                        .fontWeight(.regular)
-                        .foregroundColor(.accentColor)
-                        .opacity(0.9)
-                        .padding(.bottom, 4)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(cigar.name)
+                    .font(.headline)
 
-                    StarRating(rating: cigar.rating)
-                        .font(.caption)
-                        .foregroundColor(.accentColor)
-                }
-                Spacer()
+                Text(metadataLine)
+                    .font(.callout)
+                    .foregroundStyle(.accent)
+
+                StarRating(rating: cigar.rating)
+                    .font(.caption)
             }
         }
     }
 }
 
-// Cigar Image View
-struct CigarImageView: View {
-    var photo: Data?
-
-    private let tileSize: CGFloat = 84
-    private let cornerRadius: CGFloat = 16
-
-    var body: some View {
-        let tileShape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-
-        ZStack {
-            tileShape
-                .fill(Color(.brown))
-                .frame(width: tileSize, height: tileSize)
-            
-            if let imageData = photo,
-               let uiImage = UIImage(data: imageData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: tileSize, height: tileSize)
-                    .clipShape(tileShape)
-            } else {
-                Image(systemName: "photo.on.rectangle")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 20, height: 20)
-                    .foregroundColor(Color("AccentDarkColor"))
-            }
-        }
-    }
-}
-
-// Toolbar Items
-struct ToolbarItems: ToolbarContent {
-    @Binding var showAddCigar: Bool
-    let hasCigars: Bool
-    @Binding var sortOption: CigarSortOption
-    let lastBackupDate: Date?
-    let exportBackup: () -> Void
-    let restoreBackup: () -> Void
-
-    private var addButton: some View {
-        Button("Add Cigar", systemImage: "plus") {
-            showAddCigar.toggle()
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(Color("AccentColor"))
-    }
-
-    private var overflowMenu: some View {
-        Menu {
-            Menu {
-                Picker("Sort Option", selection: $sortOption) {
-                    ForEach(CigarSortOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
-                    }
-                }
-            } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Label("Sort By", systemImage: "arrow.up.arrow.down")
-                    Text(sortOption.rawValue)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Section {
-                Button("Export Backup…", systemImage: "square.and.arrow.up", action: exportBackup)
-                    .disabled(!hasCigars)
-                Button("Restore Backup…", systemImage: "arrow.counterclockwise", action: restoreBackup)
-                Text(lastBackupDate.map { "Last backup: \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "No backup yet")
-            }
-            Divider()
-            Text("v\(version) (\(build))")
-        } label: {
-            Label("Options", systemImage: "ellipsis")
-        }
-    }
-
-    var body: some ToolbarContent {
-            ToolbarItem(placement: .topBarLeading) {
-                if hasCigars {
-                    EditButton()
-                }
-            }
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                addButton
-                overflowMenu
-            }
-    }
+extension Bundle {
+    var shortVersion: String { infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
+    var buildNumber: String { infoDictionary?["CFBundleVersion"] as? String ?? "" }
 }
 
 #Preview {
