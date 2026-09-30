@@ -10,7 +10,7 @@ struct CigarsApp: App {
 
     var body: some Scene {
         WindowGroup {
-            CigarsHome()
+            RootTabView()
         }
         .modelContainer(sharedModelContainer)
     }

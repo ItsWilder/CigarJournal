@@ -1,8 +1,29 @@
-// CigarsHome
+// CigarListView
+// The Home (smoked cigars) and Humidor (cigars on hand) lists. A cigar can appear in
+// both: smoked 3 times with 5 more in the humidor.
 
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+
+enum CigarShelf {
+    case journal
+    case humidor
+
+    var title: String {
+        switch self {
+        case .journal: "Cigar Journal"
+        case .humidor: "Humidor"
+        }
+    }
+
+    func includes(_ cigar: CigarTemplate) -> Bool {
+        switch self {
+        case .journal: cigar.hasBeenSmoked
+        case .humidor: cigar.humidorCount > 0
+        }
+    }
+}
 
 enum CigarSortOption: String, CaseIterable, Identifiable {
     case alphabetical = "Alphabetical"
@@ -13,44 +34,36 @@ enum CigarSortOption: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Filters by name, store or notes, then sorts. Shared by the list and the details pager
-    /// so swiping through details follows the same order you see in the list.
-    func visibleCigars(_ cigars: [CigarTemplate], matching searchText: String) -> [CigarTemplate] {
-        let query = searchText.trimmingCharacters(in: .whitespaces)
-        let filtered = query.isEmpty ? cigars : cigars.filter {
-            $0.name.localizedStandardContains(query)
-                || $0.location.localizedStandardContains(query)
-                || $0.notes.localizedStandardContains(query)
-        }
-
+    func sorted(_ cigars: [CigarTemplate]) -> [CigarTemplate] {
         switch self {
         case .alphabetical:
-            return filtered.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            cigars.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         case .date:
-            return filtered.sorted { $0.date > $1.date }
+            cigars.sorted { ($0.lastSmoked ?? $0.date) > ($1.lastSmoked ?? $1.date) }
         case .price:
-            return filtered.sorted { ($0.priceValue ?? 0) > ($1.priceValue ?? 0) }
+            cigars.sorted { ($0.priceValue ?? 0) > ($1.priceValue ?? 0) }
         case .strength:
-            return filtered.sorted { $0.strengthRank > $1.strengthRank }
+            cigars.sorted { $0.strengthRank > $1.strengthRank }
         case .rating:
-            return filtered.sorted { $0.rating > $1.rating }
+            cigars.sorted { ($0.averageRating ?? 0) > ($1.averageRating ?? 0) }
         }
     }
 }
 
-struct CigarsHome: View {
+struct CigarListScreen: View {
+    let shelf: CigarShelf
+
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \CigarTemplate.date, order: .reverse) private var cigars: [CigarTemplate]
 
     @AppStorage("sortOption") private var sortOption: CigarSortOption = .date
     @AppStorage("lastBackupDate") private var lastBackupTimestamp: Double = 0
 
-    @State private var searchText = ""
     @State private var showAddCigar = false
     @State private var editingCigar: CigarTemplate?
+    @State private var smokingCigar: CigarTemplate?
     @State private var cigarPendingDelete: CigarTemplate?
     @State private var showingSettings = false
-    @Namespace private var zoomNamespace
 
     // Backup
     @State private var backupDocument: CigarBackupDocument?
@@ -61,51 +74,44 @@ struct CigarsHome: View {
     @State private var backupErrorMessage: String?
 
     var body: some View {
-        let visibleCigars = sortOption.visibleCigars(cigars, matching: searchText)
+        let visibleCigars = sortOption.sorted(cigars.filter(shelf.includes))
 
         NavigationStack {
             Group {
-                if cigars.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Cigars Yet", systemImage: "list.bullet")
-                    } description: {
-                        Text("Tap + to add your first cigar.")
-                    }
+                if visibleCigars.isEmpty {
+                    emptyState
                 } else {
                     List(visibleCigars) { cigar in
                         NavigationLink(value: cigar) {
-                            CigarRowView(cigar: cigar, zoomNamespace: zoomNamespace)
+                            CigarRowView(cigar: cigar)
                         }
-                        .swipeActions {
-                            Button("Delete", systemImage: "trash", role: .destructive) {
-                                cigarPendingDelete = cigar
+                        .swipeActions(edge: .leading) {
+                            Button(cigar.hasBeenSmoked ? "Smoke Again" : "Smoke", systemImage: "flame") {
+                                smokingCigar = cigar
                             }
+                            .tint(.accent)
+                            Button(cigar.isFavorite ? "Unfavorite" : "Favorite", systemImage: cigar.isFavorite ? "heart.slash" : "heart") {
+                                cigar.isFavorite.toggle()
+                            }
+                            .tint(.red)
+                        }
+                        .swipeActions(edge: .trailing) {
+                            removeButton(for: cigar)
                             Button("Edit", systemImage: "pencil") {
                                 editingCigar = cigar
                             }
                         }
                     }
                     .listStyle(.plain)
-                    .overlay {
-                        if visibleCigars.isEmpty {
-                            ContentUnavailableView.search(text: searchText)
-                        }
-                    }
                 }
             }
-            .navigationTitle("Cigar Journal")
-            .searchable(text: $searchText, prompt: "Name, store or notes")
+            .navigationTitle(shelf.title)
             .navigationDestination(for: CigarTemplate.self) { cigar in
-                CigarDetails(
-                    initialCigar: cigar,
-                    sortOption: sortOption,
-                    searchText: searchText,
-                    zoomNamespace: zoomNamespace
-                )
+                CigarDetailView(cigar: cigar)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add Cigar", systemImage: "plus") {
+                    Button(shelf == .journal ? "Add Cigar" : "Add to Humidor", systemImage: "plus") {
                         showAddCigar = true
                     }
                     .buttonStyle(.borderedProminent)
@@ -117,10 +123,13 @@ struct CigarsHome: View {
                 }
             }
             .sheet(isPresented: $showAddCigar) {
-                AddCigar()
+                AddCigar(startInHumidor: shelf == .humidor)
             }
             .sheet(item: $editingCigar) { cigar in
                 AddCigar(editCigar: cigar)
+            }
+            .sheet(item: $smokingCigar) { cigar in
+                SmokeSheet(cigar: cigar)
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
@@ -137,7 +146,7 @@ struct CigarsHome: View {
                     }
                 }
             } message: { _ in
-                Text("This also removes it from iCloud on all your devices.")
+                Text("This deletes the cigar and all its smokes, including from iCloud on all your devices.")
             }
             .fileExporter(
                 isPresented: isPresented($backupDocument),
@@ -173,6 +182,41 @@ struct CigarsHome: View {
         }
     }
 
+    @ViewBuilder
+    private var emptyState: some View {
+        switch shelf {
+        case .journal:
+            ContentUnavailableView {
+                Label("No Cigars Yet", systemImage: "list.bullet")
+            } description: {
+                Text("Tap + to add a cigar you've smoked.")
+            }
+        case .humidor:
+            ContentUnavailableView {
+                Label("Humidor Is Empty", systemImage: "archivebox")
+            } description: {
+                Text("Tap + to add cigars you haven't smoked yet.")
+            }
+        }
+    }
+
+    /// In the Humidor, a cigar you've already smoked is just taken out of the humidor;
+    /// anything else is deleted (after confirming).
+    @ViewBuilder
+    private func removeButton(for cigar: CigarTemplate) -> some View {
+        if shelf == .humidor && cigar.hasBeenSmoked {
+            Button("Remove", systemImage: "archivebox", role: .destructive) {
+                withAnimation {
+                    cigar.humidorCount = 0
+                }
+            }
+        } else {
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                cigarPendingDelete = cigar
+            }
+        }
+    }
+
     private var overflowMenu: some View {
         Menu("Options", systemImage: "ellipsis") {
             Picker(selection: $sortOption) {
@@ -185,23 +229,25 @@ struct CigarsHome: View {
             }
             .pickerStyle(.menu)
 
-            Section {
-                Button("Export Backup…", systemImage: "square.and.arrow.up", action: exportBackup)
-                    .disabled(cigars.isEmpty)
-                Button("Restore Backup…", systemImage: "arrow.counterclockwise") {
-                    showingRestorePicker = true
+            if shelf == .journal {
+                Section {
+                    Button("Export Backup…", systemImage: "square.and.arrow.up", action: exportBackup)
+                        .disabled(cigars.isEmpty)
+                    Button("Restore Backup…", systemImage: "arrow.counterclockwise") {
+                        showingRestorePicker = true
+                    }
+                    Text(lastBackupText)
                 }
-                Text(lastBackupText)
-            }
 
-            Section {
-                Button("Lookup API Key…", systemImage: "key") {
-                    showingSettings = true
+                Section {
+                    Button("Lookup API Key…", systemImage: "key") {
+                        showingSettings = true
+                    }
                 }
-            }
 
-            Section {
-                Text("v\(Bundle.main.shortVersion) (\(Bundle.main.buildNumber))")
+                Section {
+                    Text("v\(Bundle.main.shortVersion) (\(Bundle.main.buildNumber))")
+                }
             }
         }
     }
@@ -249,10 +295,11 @@ struct CigarsHome: View {
 
 struct CigarRowView: View {
     let cigar: CigarTemplate
-    let zoomNamespace: Namespace.ID
+    /// Shows "Smoked" / "In Humidor" tags, for search results that mix both lists.
+    var showsShelfTags = false
 
     private var metadataLine: String {
-        [cigar.type, cigar.strength, cigar.displayPrice].compactMap(\.self).joined(separator: "  •  ")
+        [cigar.type, cigar.strength, cigar.displayPrice].compactMap { $0 }.joined(separator: "  •  ")
     }
 
     var body: some View {
@@ -260,7 +307,16 @@ struct CigarRowView: View {
             CigarPhotoView(photo: cigar.photo, maxPointSize: 84)
                 .frame(width: 84, height: 84)
                 .clipShape(.rect(cornerRadius: 16, style: .continuous))
-                .matchedTransitionSource(id: cigar.persistentModelID, in: zoomNamespace)
+                .overlay(alignment: .topTrailing) {
+                    if cigar.isFavorite {
+                        Image(systemName: "heart.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.red)
+                            .shadow(color: .black.opacity(0.25), radius: 2)
+                            .padding(6)
+                            .accessibilityLabel("Favorite")
+                    }
+                }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(cigar.name)
@@ -270,10 +326,61 @@ struct CigarRowView: View {
                     .font(.callout)
                     .foregroundStyle(.accent)
 
-                StarRating(rating: cigar.rating)
-                    .font(.caption)
+                if let average = cigar.averageRating {
+                    StarRating(average: average)
+                        .font(.caption)
+                } else {
+                    Text("Not smoked yet")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if showsShelfTags {
+                    HStack(spacing: 6) {
+                        if cigar.hasBeenSmoked { ShelfTag(title: "Smoked") }
+                        if cigar.humidorCount > 0 { ShelfTag(title: "In Humidor") }
+                    }
+                }
             }
+
+            Spacer(minLength: 4)
+
+            HStack(spacing: 10) {
+                if cigar.smokeCount > 1 {
+                    Label("\(cigar.smokeCount)x", systemImage: "medal")
+                        .accessibilityLabel("Smoked \(cigar.smokeCount) times")
+                }
+                if cigar.humidorCount > 0 {
+                    Label("\(cigar.humidorCount)", systemImage: "archivebox")
+                        .accessibilityLabel("\(cigar.humidorCount) in humidor")
+                }
+            }
+            .font(.subheadline)
+            .foregroundStyle(.accent)
+            .labelStyle(CompactLabelStyle())
         }
+    }
+}
+
+private struct CompactLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 3) {
+            configuration.icon
+            configuration.title
+        }
+    }
+}
+
+private struct ShelfTag: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.accent.opacity(0.12), in: .capsule)
+            .foregroundStyle(.accent)
     }
 }
 
@@ -285,10 +392,10 @@ extension Bundle {
 #Preview {
     do {
         let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-        let container = try ModelContainer(for: CigarTemplate.self, configurations: config)
+        let container = try ModelContainer(for: CigarTemplate.self, SmokeSession.self, configurations: config)
         container.mainContext.insert(CigarTemplate(name: "Casa Magna Colorado", type: "Robusto", length: "5.50", gauge: "52", location: "Local Shop", price: "9.87", strength: "Medium", rating: 5, notes: "Dark chocolate, nutmeg and wood.", date: .now))
 
-        return CigarsHome()
+        return CigarListScreen(shelf: .journal)
             .modelContainer(container)
     } catch {
         return Text("Failed to load preview: \(error.localizedDescription)")

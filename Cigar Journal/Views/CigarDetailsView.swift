@@ -1,193 +1,317 @@
-// CigarDetails
-// Swipe left and right through cigars in the same order and filter as the list.
+// CigarDetailView
+// A full-screen photo with the cigar's details in a pull-up panel (a native sheet
+// with detents). Favorite, edit, restock and delete live in the toolbar.
 
 import SwiftData
 import SwiftUI
 
-struct CigarDetails: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-    @Query private var allCigars: [CigarTemplate]
+/// Everything the details screen can present. They're presented from the panel,
+/// since the panel is itself a sheet and only the top-most presenter can show another.
+enum CigarDetailSheet: Identifiable {
+    case edit
+    case smoke
+    case restock
+    case storeMap(StorePlace)
+    case photo
 
-    let sortOption: CigarSortOption
-    let searchText: String
-    let zoomNamespace: Namespace.ID
-    private let initialID: PersistentIdentifier
-
-    @State private var selectedID: PersistentIdentifier?
-    @State private var isShowingEditSheet = false
-    @State private var isShowingDeleteConfirmation = false
-    @State private var isShowingFullImage = false
-
-
-    init(initialCigar: CigarTemplate, sortOption: CigarSortOption, searchText: String, zoomNamespace: Namespace.ID) {
-        self.sortOption = sortOption
-        self.searchText = searchText
-        self.zoomNamespace = zoomNamespace
-        self.initialID = initialCigar.persistentModelID
-        _selectedID = State(initialValue: initialCigar.persistentModelID)
-    }
-
-    var body: some View {
-        let cigars = sortOption.visibleCigars(allCigars, matching: searchText)
-        let selectedCigar = cigars.first { $0.persistentModelID == selectedID }
-
-        // Swipe sideways between cigars: a horizontal scroll that snaps one page at a time.
-        // (A paged TabView clips each page above the home indicator, which cut off notes.)
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 0) {
-                ForEach(cigars) { cigar in
-                    CigarDetailPage(cigar: cigar) {
-                        isShowingFullImage = true
-                    }
-                    .containerRelativeFrame(.horizontal)
-                    .id(cigar.persistentModelID)
-                }
-            }
-            .scrollTargetLayout()
+    var id: String {
+        switch self {
+        case .edit: "edit"
+        case .smoke: "smoke"
+        case .restock: "restock"
+        case .storeMap(let place): "map-\(place.id)"
+        case .photo: "photo"
         }
-        .scrollTargetBehavior(.paging)
-        .scrollPosition(id: $selectedID)
-        .scrollIndicators(.hidden)
-        .ignoresSafeArea(.container, edges: .bottom)
-        .navigationTransition(.zoom(sourceID: initialID, in: zoomNamespace))
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Edit") {
-                    isShowingEditSheet = true
-                }
-                .disabled(selectedCigar == nil)
-            }
-            ToolbarSpacer(.fixed, placement: .topBarTrailing)
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Delete", systemImage: "trash", role: .destructive) {
-                    isShowingDeleteConfirmation = true
-                }
-                .disabled(selectedCigar == nil)
-                .confirmationDialog(
-                    "Delete \(selectedCigar?.name ?? "Cigar")?",
-                    isPresented: $isShowingDeleteConfirmation,
-                    titleVisibility: .visible
-                ) {
-                    Button("Delete", role: .destructive) {
-                        delete(selectedCigar, from: cigars)
-                    }
-                } message: {
-                    Text("This also removes it from iCloud on all your devices.")
-                }
-            }
-        }
-        .sheet(isPresented: $isShowingEditSheet) {
-            if let selectedCigar {
-                AddCigar(editCigar: selectedCigar)
-            }
-        }
-        .fullScreenCover(isPresented: $isShowingFullImage) {
-            FullScreenPhoto(photo: selectedCigar?.photo)
-        }
-        .onChange(of: cigars.map(\.persistentModelID)) { _, ids in
-            // The shown cigar disappeared (deleted elsewhere, or no longer matches the search).
-            if let selectedID, !ids.contains(selectedID) {
-                if let first = ids.first {
-                    self.selectedID = first
-                } else {
-                    dismiss()
-                }
-            }
-        }
-    }
-
-    private func delete(_ cigar: CigarTemplate?, from cigars: [CigarTemplate]) {
-        guard let cigar, let index = cigars.firstIndex(of: cigar) else { return }
-        let remaining = cigars.filter { $0 != cigar }
-
-        if remaining.isEmpty {
-            dismiss()
-        } else {
-            selectedID = remaining[min(index, remaining.count - 1)].persistentModelID
-        }
-        modelContext.delete(cigar)
     }
 }
 
-// MARK: - Page
-
-private struct CigarDetailPage: View {
+struct CigarDetailView: View {
     let cigar: CigarTemplate
-    let showFullImage: () -> Void
 
-    @State private var mapFocus: StorePlace?
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
 
-    private var sizeLine: String {
-        "\(cigar.type)  /  \(cigar.length)\" x \(cigar.gauge)  /  \(cigar.strength)"
+    @State private var showingPanel = true
+    @State private var detent = Self.peekDetent
+    @State private var activeSheet: CigarDetailSheet?
+    @State private var confirmingDelete = false
+
+    static let peekDetent = PresentationDetent.fraction(0.45)
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                if cigar.photo != nil {
+                    CigarPhotoView(photo: cigar.photo, maxPointSize: 1200)
+                        .onTapGesture {
+                            activeSheet = .photo
+                        }
+                } else {
+                    Color(.brown)
+                        .onTapGesture {
+                            activeSheet = .edit
+                        }
+
+                    // Centered in the part of the screen the panel doesn't cover.
+                    Image(systemName: "photo.badge.plus")
+                        .font(.system(size: 64))
+                        .foregroundStyle(.accentDark)
+                        .position(x: proxy.size.width / 2, y: proxy.size.height * 0.3)
+                        .allowsHitTesting(false)
+                        .accessibilityLabel("Add photo")
+                }
+            }
+        }
+        .ignoresSafeArea()
+        .toolbar(.hidden, for: .tabBar)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(cigar.isFavorite ? "Unfavorite" : "Favorite", systemImage: cigar.isFavorite ? "heart.fill" : "heart") {
+                    cigar.isFavorite.toggle()
+                }
+                .tint(cigar.isFavorite ? .red : nil)
+                .symbolEffect(.bounce, value: cigar.isFavorite)
+            }
+            ToolbarSpacer(.fixed, placement: .topBarTrailing)
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button("Edit", systemImage: "square.and.pencil") {
+                    activeSheet = .edit
+                }
+                Button("Add to Humidor", systemImage: "archivebox") {
+                    activeSheet = .restock
+                }
+                Button("Delete", systemImage: "trash") {
+                    detent = Self.peekDetent
+                    confirmingDelete = true
+                }
+            }
+        }
+        .sheet(isPresented: $showingPanel) {
+            CigarInfoPanel(
+                cigar: cigar,
+                activeSheet: $activeSheet,
+                confirmingDelete: $confirmingDelete,
+                onDelete: deleteCigar
+            )
+            .presentationDetents([Self.peekDetent, .large], selection: $detent)
+            .presentationBackgroundInteraction(.enabled(upThrough: Self.peekDetent))
+            .presentationDragIndicator(.visible)
+            // Solid rather than the default see-through glass, so text stays readable
+            // over busy photos.
+            .presentationBackground(.background)
+            .interactiveDismissDisabled()
+        }
+        .onDisappear {
+            showingPanel = false
+        }
     }
 
-    private var purchaseLine: String? {
-        let parts = [cigar.displayLocation, cigar.displayPrice].compactMap { $0 }
-        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    private func deleteCigar() {
+        showingPanel = false
+        dismiss()
+        // Delete after the screen is gone so nothing renders a deleted cigar.
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            modelContext.delete(cigar)
+        }
     }
+}
+
+// MARK: - Panel
+
+private struct CigarInfoPanel: View {
+    let cigar: CigarTemplate
+    @Binding var activeSheet: CigarDetailSheet?
+    @Binding var confirmingDelete: Bool
+    let onDelete: () -> Void
+
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                Button(action: showFullImage) {
-                    CigarPhotoView(photo: cigar.photo, maxPointSize: 500)
-                        .frame(height: 300)
-                }
-                .buttonStyle(.plain)
-                .allowsHitTesting(cigar.photo != nil)
-                .accessibilityLabel("View photo full screen")
+            VStack(alignment: .leading, spacing: 20) {
+                Text(cigar.name)
+                    .font(.title.bold())
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(cigar.name)
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(.accent)
+                keyFacts
 
-                    Text(cigar.date, style: .date)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                Divider()
 
-                    Text(sizeLine)
-                        .font(.title3.weight(.semibold))
-                        .padding(.top, 8)
-
-                    if let purchaseLine {
-                        Text(purchaseLine)
-                            .fontWeight(.medium)
-                    }
-
-                    if let storePlace = cigar.storePlace {
-                        StoreMapCard(place: storePlace) {
-                            mapFocus = storePlace
+                LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)], alignment: .leading, spacing: 16) {
+                    DetailCell(title: "Store", systemImage: "storefront", value: cigar.displayLocation)
+                    DetailCell(title: "Price", systemImage: "banknote", value: cigar.displayPrice)
+                    DetailCell(title: "Rating", systemImage: "star.circle") {
+                        if let average = cigar.averageRating {
+                            StarRating(average: average)
+                                .font(.subheadline)
+                        } else {
+                            Text("Not smoked yet")
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 4)
                     }
+                    DetailCell(title: "Type", systemImage: "shippingbox", value: cigar.type)
+                    DetailCell(title: "Wrapper", systemImage: "leaf", value: cigar.wrapper)
+                    DetailCell(title: "Binder", systemImage: "square.stack.3d.up", value: cigar.binder)
+                    DetailCell(title: "Filler", systemImage: "square.3.layers.3d", value: cigar.filler)
+                    DetailCell(title: "Origin", systemImage: "globe.americas", value: cigar.origin)
+                }
 
-                    sectionHeader("Rating:")
-                    StarRating(rating: cigar.rating)
-
-                    if !cigar.notes.isEmpty {
-                        sectionHeader("Notes:")
-                        Text(cigar.notes)
+                if let place = cigar.storePlace {
+                    StoreMapCard(place: place) {
+                        activeSheet = .storeMap(place)
                     }
                 }
-                .padding()
+
+                smokesSection
+            }
+            .padding(.horizontal)
+            .padding(.top, 24)
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                activeSheet = .smoke
+            } label: {
+                Text(cigar.hasBeenSmoked ? "Smoke Again" : "Smoke")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .tint(.accent)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .edit: AddCigar(editCigar: cigar)
+            case .smoke: SmokeSheet(cigar: cigar)
+            case .restock: RestockSheet(cigar: cigar)
+            case .storeMap(let place): StoresMapView(focus: place)
+            case .photo: FullScreenPhoto(photo: cigar.photo)
             }
         }
-        // Draw all the way to the bottom edge; the margin keeps the last line clear of
-        // the home indicator once you've scrolled to the end.
-        .ignoresSafeArea(.container, edges: .bottom)
-        .contentMargins(.bottom, 44, for: .scrollContent)
-        .sheet(item: $mapFocus) { place in
-            StoresMapView(focus: place)
+        .confirmationDialog("Delete \(cigar.name)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive, action: onDelete)
+        } message: {
+            Text("This deletes the cigar and all its smokes, including from iCloud on all your devices.")
         }
     }
 
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.callout.weight(.semibold))
-            .foregroundStyle(.accent)
-            .padding(.top, 16)
+    // MARK: Key facts
+
+    private var keyFacts: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], alignment: .leading, spacing: 12) {
+            KeyFact(title: "Strength", systemImage: "chart.bar.fill", value: cigar.strength)
+            KeyFact(title: "Size", systemImage: "arrow.left.and.right", value: "\(cigar.length) x \(cigar.gauge)")
+            KeyFact(title: "Last Smoked", systemImage: "calendar", value: lastSmokedText)
+            if cigar.humidorCount > 0 {
+                KeyFact(title: "Humidor", systemImage: "archivebox.fill", value: "\(cigar.humidorCount)")
+            }
+            if cigar.smokeCount > 1 {
+                Label("Smoked \(cigar.smokeCount)x", systemImage: "medal")
+                    .foregroundStyle(.accent)
+            }
+        }
+        .font(.body)
+    }
+
+    private var lastSmokedText: String {
+        if let lastSmoked = cigar.lastSmoked {
+            return lastSmoked.formatted(date: .numeric, time: .omitted)
+        }
+        return cigar.humidorCount > 0 ? "In Humidor" : "Not yet"
+    }
+
+    // MARK: Notes and smoke history
+
+    @ViewBuilder
+    private var smokesSection: some View {
+        let smokes = cigar.smokes
+
+        if smokes.count > 1 {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Smokes")
+                    .font(.headline)
+                ForEach(smokes) { smoke in
+                    SmokeRow(smoke: smoke)
+                        .contextMenu {
+                            if let session = smoke.session {
+                                Button("Delete This Smoke", systemImage: "trash", role: .destructive) {
+                                    modelContext.delete(session)
+                                }
+                            }
+                        }
+                    if smoke.id != smokes.last?.id {
+                        Divider()
+                    }
+                }
+            }
+        } else if let notes = cigar.latestNotes {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Notes")
+                    .font(.headline)
+                Text(notes)
+            }
+        }
+    }
+}
+
+private struct KeyFact: View {
+    let title: String
+    let systemImage: String
+    let value: String
+
+    var body: some View {
+        Label {
+            Text("\(Text("\(title): ").foregroundStyle(.accent))\(Text(value).fontWeight(.semibold))")
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(.accent)
+        }
+    }
+}
+
+private struct DetailCell<Content: View>: View {
+    let title: String
+    let systemImage: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            content
+                .foregroundStyle(.accent)
+        }
+    }
+}
+
+extension DetailCell where Content == Text {
+    init(title: String, systemImage: String, value: String?) {
+        self.init(title: title, systemImage: systemImage) {
+            Text(value.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 } ?? "—")
+        }
+    }
+}
+
+private struct SmokeRow: View {
+    let smoke: SmokeEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(smoke.date, format: .dateTime.month().day().year())
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                StarRating(rating: smoke.rating)
+                    .font(.caption)
+            }
+            if !smoke.notes.isEmpty {
+                Text(smoke.notes)
+            }
+        }
     }
 }
 
@@ -219,29 +343,24 @@ private struct FullScreenPhoto: View {
                 .buttonStyle(.glass)
                 .padding()
             }
-    }
-}
-
-private struct DetailsPreviewHost: View {
-    let cigar: CigarTemplate
-    @Namespace private var namespace
-
-    var body: some View {
-        NavigationStack {
-            CigarDetails(initialCigar: cigar, sortOption: .date, searchText: "", zoomNamespace: namespace)
-        }
+            .presentationDetents([.large])
     }
 }
 
 #Preview {
     do {
         let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-        let container = try ModelContainer(for: CigarTemplate.self, configurations: config)
-        let cigar = CigarTemplate(name: "Montecristo No. 2", type: "Torpedo", length: "6.125", gauge: "52", location: "Local Shop", price: "15", strength: "Strong", rating: 5, notes: "Classic Cuban flavor with rich earth tones and a spicy finish.", date: .now)
+        let container = try ModelContainer(for: CigarTemplate.self, SmokeSession.self, configurations: config)
+        let cigar = CigarTemplate(name: "La Flor Dominicana 1994", type: "Toro", length: "6.00", gauge: "52", location: "Smoke on the Water", price: "11", strength: "Medium", rating: 4, notes: "A great cigar. Mild and easy going.", date: .now)
+        cigar.wrapper = "Maduro"
+        cigar.origin = "Dominican"
+        cigar.humidorCount = 5
         container.mainContext.insert(cigar)
 
-        return DetailsPreviewHost(cigar: cigar)
-            .modelContainer(container)
+        return NavigationStack {
+            CigarDetailView(cigar: cigar)
+        }
+        .modelContainer(container)
     } catch {
         return Text("Failed to create preview: \(error.localizedDescription)")
     }

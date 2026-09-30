@@ -1,5 +1,6 @@
 // AddCigar
-// Add a new cigar, or edit an existing one when `editCigar` is set.
+// Add a new cigar, or edit an existing one when `editCigar` is set. A new cigar can be
+// one you've smoked (goes to Home) or one you haven't yet (goes to the Humidor).
 
 import SwiftData
 import SwiftUI
@@ -26,8 +27,14 @@ struct AddCigar: View {
     @State private var expandedWheel: String?
     @State private var lookupRequest: LookupRequest?
     @State private var lookupSource: URL?
+    @State private var wrapper: String
+    @State private var binder: String
+    @State private var filler: String
+    @State private var origin: String
+    @State private var notSmokedYet: Bool
+    @State private var humidorCount: Int
 
-    init(editCigar: CigarTemplate? = nil) {
+    init(editCigar: CigarTemplate? = nil, startInHumidor: Bool = false) {
         self.editCigar = editCigar
 
         _name = State(initialValue: editCigar?.name ?? "")
@@ -42,6 +49,12 @@ struct AddCigar: View {
         _date = State(initialValue: editCigar?.date ?? .now)
         _photo = State(initialValue: editCigar?.photo)
         _storePlace = State(initialValue: editCigar?.storePlace)
+        _wrapper = State(initialValue: editCigar?.wrapper ?? "")
+        _binder = State(initialValue: editCigar?.binder ?? "")
+        _filler = State(initialValue: editCigar?.filler ?? "")
+        _origin = State(initialValue: editCigar?.origin ?? "")
+        _notSmokedYet = State(initialValue: editCigar.map { !$0.hasBeenSmoked } ?? startInHumidor)
+        _humidorCount = State(initialValue: editCigar?.humidorCount ?? (startInHumidor ? 1 : 0))
     }
 
     var body: some View {
@@ -89,8 +102,28 @@ struct AddCigar: View {
                         }
                     }
                     IconTextFieldRow(systemImage: "dollarsign.circle", title: "Price", text: $price, keyboardType: .decimalPad)
-                    IconDateRow(systemImage: "calendar", title: "Date", date: $date)
-                    IconRatingRow(systemImage: "star", title: "Rating", rating: $rating)
+                    IconDateRow(systemImage: "calendar", title: dateTitle, date: $date)
+                    if !notSmokedYet {
+                        IconRatingRow(systemImage: "star", title: "Rating", rating: $rating)
+                    }
+                }
+
+                Section {
+                    // Only a new cigar can start out unsmoked; after that, use Smoke.
+                    if editCigar == nil {
+                        Toggle(isOn: $notSmokedYet.animation()) {
+                            Label("I Haven't Smoked It Yet", systemImage: "archivebox")
+                        }
+                    }
+                    Stepper(value: $humidorCount, in: (notSmokedYet ? 1 : 0)...99) {
+                        Label("In Humidor: \(humidorCount)", systemImage: "archivebox.fill")
+                    }
+                } header: {
+                    Text("Humidor")
+                } footer: {
+                    if notSmokedYet {
+                        Text("It'll go in your Humidor. Tap Smoke on it when you light one up.")
+                    }
                 }
 
                 Section("Size") {
@@ -116,9 +149,29 @@ struct AddCigar: View {
                     IconPickerRow(systemImage: "shippingbox", title: "Type", selection: $type, options: CigarTemplate.typeOptions)
                 }
 
-                Section("Notes") {
-                    TextField("How did it smoke?", text: $notes, axis: .vertical)
-                        .lineLimit(6...)
+                Section("Tobacco") {
+                    IconTextFieldRow(systemImage: "leaf", title: "Wrapper", text: $wrapper)
+                    IconTextFieldRow(systemImage: "square.stack.3d.up", title: "Binder", text: $binder)
+                    IconTextFieldRow(systemImage: "square.3.layers.3d", title: "Filler", text: $filler)
+                    IconTextFieldRow(systemImage: "globe.americas", title: "Origin", text: $origin)
+                }
+
+                if !notSmokedYet {
+                    Section {
+                        TextField("How did it smoke?", text: $notes, axis: .vertical)
+                            .lineLimit(6...)
+                    } header: {
+                        Text("Notes")
+                    } footer: {
+                        if (editCigar?.smokeCount ?? 0) > 1 {
+                            Text("These are from your first smoke. Later smokes are listed on the cigar's page.")
+                        }
+                    }
+                }
+            }
+            .onChange(of: notSmokedYet) { _, notSmoked in
+                if notSmoked && humidorCount == 0 {
+                    humidorCount = 1
                 }
             }
             .onChange(of: location) { _, newValue in
@@ -161,6 +214,11 @@ struct AddCigar: View {
         let photo: Data?
     }
 
+    private var dateTitle: String {
+        if notSmokedYet { return "Date Added" }
+        return (editCigar?.smokeCount ?? 0) > 1 ? "First Smoked" : "Date"
+    }
+
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -180,6 +238,10 @@ struct AddCigar: View {
         if let length = selection.length { self.length = length }
         if let gauge = selection.gauge { self.gauge = gauge }
         if let strength = selection.strength { self.strength = strength }
+        if let wrapper = selection.wrapper { self.wrapper = wrapper }
+        if let binder = selection.binder { self.binder = binder }
+        if let filler = selection.filler { self.filler = filler }
+        if let origin = selection.origin { self.origin = origin }
         lookupSource = selection.sourceURL
     }
 
@@ -206,6 +268,7 @@ struct AddCigar: View {
                 cigar.photo = photo
             }
             cigar.storePlace = storedPlace
+            applyNewFields(to: cigar)
         } else {
             let cigar = CigarTemplate(
                 name: trimmedName,
@@ -221,12 +284,26 @@ struct AddCigar: View {
                 photo: photo
             )
             cigar.storePlace = storedPlace
+            cigar.hasBeenSmoked = !notSmokedYet
+            applyNewFields(to: cigar)
             modelContext.insert(cigar)
         }
+    }
+
+    private func applyNewFields(to cigar: CigarTemplate) {
+        func cleaned(_ text: String) -> String? {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        cigar.wrapper = cleaned(wrapper)
+        cigar.binder = cleaned(binder)
+        cigar.filler = cleaned(filler)
+        cigar.origin = cleaned(origin)
+        cigar.humidorCount = humidorCount
     }
 }
 
 #Preview {
     AddCigar()
-        .modelContainer(for: CigarTemplate.self, inMemory: true)
+        .modelContainer(for: [CigarTemplate.self, SmokeSession.self], inMemory: true)
 }

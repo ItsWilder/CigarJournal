@@ -14,6 +14,10 @@ struct CigarLookupSelection {
     var length: String?
     var gauge: String?
     var strength: String?
+    var wrapper: String?
+    var binder: String?
+    var filler: String?
+    var origin: String?
     var sourceURL: URL?
 }
 
