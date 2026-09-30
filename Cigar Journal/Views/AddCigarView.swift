@@ -21,6 +21,8 @@ struct AddCigar: View {
     @State private var notes: String
     @State private var date: Date
     @State private var photo: Data?
+    @State private var storePlace: StorePlace?
+    @State private var showingStorePicker = false
     @State private var expandedWheel: String?
     @State private var showingLookup = false
     @State private var lookupSource: URL?
@@ -39,6 +41,7 @@ struct AddCigar: View {
         _notes = State(initialValue: editCigar?.notes ?? "")
         _date = State(initialValue: editCigar?.date ?? .now)
         _photo = State(initialValue: editCigar?.photo)
+        _storePlace = State(initialValue: editCigar?.storePlace)
     }
 
     var body: some View {
@@ -63,7 +66,27 @@ struct AddCigar: View {
                                 .font(.footnote)
                         }
                     }
-                    IconTextFieldRow(systemImage: "storefront", title: "Store", text: $location)
+                    IconTextFieldRow(systemImage: "storefront", title: "Store", text: $location) {
+                        Button("Find Store on Map", systemImage: storePlace == nil ? "mappin.circle" : "mappin.circle.fill") {
+                            showingStorePicker = true
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.borderless)
+                    }
+                    if let storePlace {
+                        HStack {
+                            Label(storePlace.address ?? "Location saved", systemImage: "mappin.and.ellipse")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Remove Location", systemImage: "xmark.circle.fill") {
+                                self.storePlace = nil
+                            }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(.secondary)
+                        }
+                    }
                     IconTextFieldRow(systemImage: "dollarsign.circle", title: "Price", text: $price, keyboardType: .decimalPad)
                     IconDateRow(systemImage: "calendar", title: "Date", date: $date)
                     IconRatingRow(systemImage: "star", title: "Rating", rating: $rating)
@@ -95,6 +118,12 @@ struct AddCigar: View {
                 Section("Notes") {
                     TextField("How did it smoke?", text: $notes, axis: .vertical)
                         .lineLimit(6...)
+                }
+            }
+            .sheet(isPresented: $showingStorePicker) {
+                StorePickerView(query: location) { place in
+                    storePlace = place
+                    location = place.name
                 }
             }
             .sheet(isPresented: $showingLookup) {
@@ -161,8 +190,9 @@ struct AddCigar: View {
             if cigar.photo != photo {
                 cigar.photo = photo
             }
+            cigar.storePlace = storePlace
         } else {
-            modelContext.insert(CigarTemplate(
+            let cigar = CigarTemplate(
                 name: trimmedName,
                 type: type,
                 length: length,
@@ -174,7 +204,9 @@ struct AddCigar: View {
                 notes: notes,
                 date: date,
                 photo: photo
-            ))
+            )
+            cigar.storePlace = storePlace
+            modelContext.insert(cigar)
         }
     }
 }

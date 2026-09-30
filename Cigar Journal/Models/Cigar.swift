@@ -2,7 +2,8 @@
 //
 // ⚠️ This class is the CloudKit schema. Don't rename the class or any stored
 // property, and don't change their types, or existing iCloud data will stop
-// showing up. Add computed helpers in the extension below instead.
+// showing up. New properties must be optional (or have a default) so older
+// records still load. Add computed helpers in the extensions below instead.
 
 import Foundation
 import SwiftData
@@ -20,6 +21,12 @@ class CigarTemplate {
     var notes: String = ""
     var date: Date = Date()
     var photo: Data?
+
+    // Where the cigar was bought, picked from Apple Maps. `location` keeps the store name.
+    var storePlaceID: String?
+    var storeLatitude: Double?
+    var storeLongitude: Double?
+    var storeAddress: String?
 
     init(name: String, type: String, length: String, gauge: String, location: String, price: String, strength: String, rating: Int, notes: String, date: Date, photo: Data? = nil) {
         self.name = name
@@ -68,6 +75,26 @@ extension CigarTemplate {
         return trimmed.isEmpty || trimmed == Self.emptyLocation ? nil : trimmed
     }
 
+    /// The store's map location, or nil for cigars logged with just a store name.
+    var storePlace: StorePlace? {
+        get {
+            guard let storeLatitude, let storeLongitude else { return nil }
+            return StorePlace(
+                name: displayLocation ?? "Store",
+                placeID: storePlaceID,
+                latitude: storeLatitude,
+                longitude: storeLongitude,
+                address: storeAddress
+            )
+        }
+        set {
+            storePlaceID = newValue?.placeID
+            storeLatitude = newValue?.latitude
+            storeLongitude = newValue?.longitude
+            storeAddress = newValue?.address
+        }
+    }
+
     var strengthRank: Int {
         switch strength.lowercased() {
         case "strong", "full": 3
@@ -114,4 +141,17 @@ extension CigarTemplate {
         guard let inches = parseLength(raw) else { return raw.isEmpty ? "6.00" : raw }
         return formatLength((inches * 8).rounded() / 8)
     }
+}
+
+// MARK: - Store location
+
+/// A store picked from Apple Maps. `placeID` lets Maps reopen the exact place card;
+/// the coordinates and address are a fallback if Apple ever retires that ID.
+struct StorePlace: Identifiable, Equatable, Sendable {
+    var id: String { placeID ?? "\(latitude),\(longitude)" }
+    var name: String
+    var placeID: String?
+    var latitude: Double
+    var longitude: Double
+    var address: String?
 }

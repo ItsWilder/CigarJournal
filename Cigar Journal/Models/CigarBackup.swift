@@ -25,6 +25,11 @@ struct CigarBackup: Codable {
         var notes: String
         var date: Date
         var photo: Data?
+        // Added with store locations; older backups simply don't have them.
+        var storePlaceID: String?
+        var storeLatitude: Double?
+        var storeLongitude: Double?
+        var storeAddress: String?
     }
 }
 
@@ -43,7 +48,11 @@ extension CigarBackup {
                 rating: cigar.rating,
                 notes: cigar.notes,
                 date: cigar.date,
-                photo: cigar.photo
+                photo: cigar.photo,
+                storePlaceID: cigar.storePlaceID,
+                storeLatitude: cigar.storeLatitude,
+                storeLongitude: cigar.storeLongitude,
+                storeAddress: cigar.storeAddress
             )
         }
     }
@@ -78,7 +87,7 @@ extension CigarBackup {
 
     static func insert(_ entries: [Entry], into context: ModelContext) {
         for entry in entries {
-            context.insert(CigarTemplate(
+            let cigar = CigarTemplate(
                 name: entry.name,
                 type: entry.type,
                 length: entry.length,
@@ -90,7 +99,12 @@ extension CigarBackup {
                 notes: entry.notes,
                 date: entry.date,
                 photo: entry.photo
-            ))
+            )
+            cigar.storePlaceID = entry.storePlaceID
+            cigar.storeLatitude = entry.storeLatitude
+            cigar.storeLongitude = entry.storeLongitude
+            cigar.storeAddress = entry.storeAddress
+            context.insert(cigar)
         }
     }
 }

@@ -151,6 +151,8 @@ private struct CigarDetailPage: View {
     let cigar: CigarTemplate
     let showFullImage: () -> Void
 
+    @State private var mapFocus: StorePlace?
+
     private var sizeLine: String {
         "\(cigar.type)  /  \(cigar.length)\" x \(cigar.gauge)  /  \(cigar.strength)"
     }
@@ -189,6 +191,13 @@ private struct CigarDetailPage: View {
                             .fontWeight(.medium)
                     }
 
+                    if let storePlace = cigar.storePlace {
+                        StoreMapCard(place: storePlace) {
+                            mapFocus = storePlace
+                        }
+                        .padding(.vertical, 4)
+                    }
+
                     StarRating(rating: cigar.rating)
                         .padding(.top, 8)
 
@@ -202,6 +211,9 @@ private struct CigarDetailPage: View {
                 }
                 .padding()
             }
+        }
+        .sheet(item: $mapFocus) { place in
+            StoresMapView(focus: place)
         }
     }
 }

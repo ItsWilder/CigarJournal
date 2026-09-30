@@ -294,6 +294,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Cigars;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Allow camera access to capture cigar photos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Shows cigar shops near you first when you pick where you bought a cigar.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "To add photos to your Cigar Details, the app needs access to your Photos Library";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -335,6 +336,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Cigars;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Allow camera access to capture cigar photos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Shows cigar shops near you first when you pick where you bought a cigar.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "To add photos to your Cigar Details, the app needs access to your Photos Library";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
