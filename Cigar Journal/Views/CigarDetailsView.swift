@@ -43,7 +43,8 @@ struct CigarDetails: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .navigationTransition(.zoom(sourceID: initialID, in: zoomNamespace))
-        .safeAreaInset(edge: .bottom) {
+        // An overlay, not a safe-area inset, so the page scrolls underneath the glass dots.
+        .overlay(alignment: .bottom) {
             if cigars.count > 1 {
                 pageDots(for: cigars)
             }
@@ -198,23 +199,29 @@ private struct CigarDetailPage: View {
                         .padding(.vertical, 4)
                     }
 
+                    sectionHeader("Rating:")
                     StarRating(rating: cigar.rating)
-                        .padding(.top, 8)
 
                     if !cigar.notes.isEmpty {
-                        Text("Notes:")
-                            .font(.callout.weight(.semibold))
-                            .foregroundStyle(.accent)
-                            .padding(.top, 16)
+                        sectionHeader("Notes:")
                         Text(cigar.notes)
                     }
                 }
                 .padding()
             }
         }
+        // Leave room so the last lines can scroll up past the floating page dots.
+        .contentMargins(.bottom, 72, for: .scrollContent)
         .sheet(item: $mapFocus) { place in
             StoresMapView(focus: place)
         }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.callout.weight(.semibold))
+            .foregroundStyle(.accent)
+            .padding(.top, 16)
     }
 }
 
